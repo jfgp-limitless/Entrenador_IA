@@ -156,53 +156,72 @@ function renderCardio(d){
     }
   })
 
-  if(hasPace){
+    const eje_x = s.eje_x || []
+    const eje_label = s.eje_x_label || 'km'
+
+    if(hasPace && eje_x.length){
     new Chart(document.getElementById('chartPace'),{
-      type:'line',
-      data:{
-        labels: s.distance,
+        type:'line',
+        data:{
+        labels: eje_x,
         datasets:[{
-          label:'Pace',data:s.pace,
-          borderColor:'#1D9E75',backgroundColor:'rgba(29,158,117,0.1)',
-          tension:0.3,fill:true
+            label:'Pace', data:s.pace,
+            borderColor:'#1D9E75', backgroundColor:'rgba(29,158,117,0.1)',
+            tension:0.3, fill:true, pointRadius:0
         }]
-      },
-      options:{...chartOpts(),scales:{
-        x:{ticks:{color:'#6b6b78',font:{size:10},maxTicksLimit:8},grid:{color:'#1e1e26'},title:{display:true,text:'km',color:'#6b6b78',font:{size:10}}},
-        y:{ticks:{color:'#6b6b78',font:{size:10}},grid:{color:'#1e1e26'},reverse:true,title:{display:true,text:'min/km',color:'#6b6b78',font:{size:10}}}
-      }}
+        },
+        options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false}},
+        scales:{
+            x:{ticks:{color:'#6b6b78',font:{size:10},maxTicksLimit:8},grid:{color:'#1e1e26'},
+            title:{display:true,text:eje_label,color:'#6b6b78',font:{size:10}}},
+            y:{ticks:{color:'#6b6b78',font:{size:10}},grid:{color:'#1e1e26'},reverse:true,
+            title:{display:true,text:'min/km',color:'#6b6b78',font:{size:10}}}
+        }}
     })
-  }
+    }
 
-  if(hasHR){
+    if(hasHR && eje_x.length){
     new Chart(document.getElementById('chartHR'),{
-      type:'line',
-      data:{
-        labels:s.distance,
+        type:'line',
+        data:{
+        labels: eje_x,
         datasets:[{
-          label:'HR',data:s.heartrate,
-          borderColor:'#e07b4f',backgroundColor:'rgba(224,123,79,0.1)',
-          tension:0.3,fill:true
+            label:'HR', data:s.heartrate,
+            borderColor:'#e07b4f', backgroundColor:'rgba(224,123,79,0.1)',
+            tension:0.3, fill:true, pointRadius:0
         }]
-      },
-      options:chartOpts()
+        },
+        options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false}},
+        scales:{
+            x:{ticks:{color:'#6b6b78',font:{size:10},maxTicksLimit:8},grid:{color:'#1e1e26'},
+            title:{display:true,text:eje_label,color:'#6b6b78',font:{size:10}}},
+            y:{ticks:{color:'#6b6b78',font:{size:10}},grid:{color:'#1e1e26'}}
+        }}
     })
-  }
+    }
 
-  if(hasAlt){
+    if(hasAlt && eje_x.length){
     new Chart(document.getElementById('chartAlt'),{
-      type:'line',
-      data:{
-        labels:s.distance,
+        type:'line',
+        data:{
+        labels: eje_x,
         datasets:[{
-          label:'Altitude',data:s.altitude,
-          borderColor:'#7eaaef',backgroundColor:'rgba(126,170,239,0.1)',
-          tension:0.3,fill:true
+            label:'Altitude', data:s.altitude,
+            borderColor:'#7eaaef', backgroundColor:'rgba(126,170,239,0.1)',
+            tension:0.3, fill:true, pointRadius:0
         }]
-      },
-      options:chartOpts()
+        },
+        options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false}},
+        scales:{
+            x:{ticks:{color:'#6b6b78',font:{size:10},maxTicksLimit:8},grid:{color:'#1e1e26'},
+            title:{display:true,text:eje_label,color:'#6b6b78',font:{size:10}}},
+            y:{ticks:{color:'#6b6b78',font:{size:10}},grid:{color:'#1e1e26'}}
+        }}
     })
-  }
+    }
 }
 
 function renderFuerza(d){

@@ -447,16 +447,12 @@ def api_chat():
 
 def get_detalle_actividad(strava_id):
     conn = get_connection()
-    act = conn.execute("""
-        SELECT * FROM actividades WHERE strava_id = ?
-    """, (strava_id,)).fetchone()
+    act = conn.execute("SELECT * FROM actividades WHERE strava_id = ?", (strava_id,)).fetchone()
     if not act:
         conn.close()
         return None
 
-    streams = conn.execute("""
-        SELECT * FROM activity_streams WHERE strava_id = ?
-    """, (strava_id,)).fetchone()
+    streams = conn.execute("SELECT * FROM activity_streams WHERE strava_id = ?", (strava_id,)).fetchone()
     conn.close()
 
     result = dict(act)
@@ -469,12 +465,14 @@ def get_detalle_actividad(strava_id):
         alt_data = json.loads(streams["altitude_data"] or "[]")
         cad_data = json.loads(streams["cadence_data"] or "[]")
 
-        # Calcular splits por km
+        has_distance = len(dist_data) > 0
+
+        # Calcular splits por km solo si hay distancia
         splits = []
-        if time_data and dist_data:
+        if has_distance and time_data:
             km_actual = 1
             idx_inicio = 0
-            dist_inicio = dist_data[0] if dist_data else 0
+            dist_inicio = dist_data[0]
 
             for i, dist in enumerate(dist_data):
                 km_recorrido = (dist - dist_inicio) / 1000
@@ -485,44 +483,60 @@ def get_detalle_actividad(strava_id):
                         pace_sec = int(tiempo_km % 60)
                         fc_tramo = hr_data[idx_inicio:i+1] if hr_data else []
                         vel_tramo = vel_data[idx_inicio:i+1] if vel_data else []
-                        alt_tramo = alt_data[idx_inicio:i+1] if alt_data else []
                         splits.append({
                             "km": km_actual,
                             "pace_str": f"{pace_min}:{pace_sec:02d}",
                             "pace_seg": tiempo_km,
                             "fc_media": round(sum(fc_tramo)/len(fc_tramo)) if fc_tramo else None,
                             "vel_media": round(sum(vel_tramo)/len(vel_tramo)*3.6, 1) if vel_tramo else None,
-                            "altitud_media": round(sum(alt_tramo)/len(alt_tramo), 1) if alt_tramo else None,
                         })
                     km_actual += 1
                     idx_inicio = i
 
-        # Reducir puntos para el dashboard (max 500 para no sobrecargar el browser)
         def reducir(arr, max_pts=500):
             if not arr or len(arr) <= max_pts:
                 return arr
-            step = len(arr) // max_pts
+            step = max(1, len(arr) // max_pts)
             return arr[::step]
 
-        # Convertir velocidad a pace (min/km)
+        # Eje X: distancia si existe, sino tiempo en minutos
+        if has_distance:
+            eje_x = [round(d/1000, 2) for d in reducir(dist_data)]
+            eje_x_label = "km"
+        else:
+            eje_x = [round(t/60, 1) for t in reducir(time_data)]
+            eje_x_label = "min"
+
+        # Pace desde velocity
+        vel_reducida = reducir(vel_data)
         pace_stream = []
-        for v in reducir(vel_data):
+        for v in vel_reducida:
             if v and v > 0.5:
-                pace_seg = 1000 / v
-                pace_stream.append(round(pace_seg / 60, 2))
+                pace_stream.append(round((1000/v)/60, 2))
             else:
                 pace_stream.append(None)
 
+        # Reducir los demas streams al mismo tamaño que eje_x
+        n = len(eje_x)
+        def reducir_a_n(arr):
+            if not arr:
+                return []
+            if len(arr) <= n:
+                return arr
+            step = max(1, len(arr) // n)
+            return arr[::step][:n]
+
         result["streams"] = {
-            "time": reducir(time_data),
-            "distance": [round(d/1000, 2) for d in reducir(dist_data)],
-            "heartrate": reducir(hr_data),
-            "pace": pace_stream,
-            "altitude": reducir(alt_data),
-            "cadence": reducir(cad_data),
-            "velocity": [round(v*3.6, 1) for v in reducir(vel_data)]
+            "eje_x": eje_x,
+            "eje_x_label": eje_x_label,
+            "heartrate": reducir_a_n(hr_data),
+            "pace": pace_stream[:n] if pace_stream else [],
+            "altitude": reducir_a_n(alt_data),
+            "cadence": reducir_a_n(cad_data),
+            "velocity": [round(v*3.6,1) for v in reducir_a_n(vel_data)]
         }
         result["splits"] = splits
+        result["has_distance"] = has_distance
 
     return result
 
