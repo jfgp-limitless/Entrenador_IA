@@ -37,8 +37,12 @@ def obtener_detalle_actividad(access_token, strava_id):
     )
     if response.status_code == 200:
         data = response.json()
-        return data.get("description", "")
-    return ""
+        return {
+            "descripcion": data.get("description", ""),
+            "calorias": data.get("calories") or data.get("kilojoules")
+        }
+    return {"descripcion": "", "calorias": None}
+   
 
 def sincronizar_actividades(access_token, paginas=5):
     headers = {"Authorization": f"Bearer {access_token}"}
@@ -81,8 +85,10 @@ def sincronizar_actividades(access_token, paginas=5):
             tipo = a.get("type", "") or a.get("sport_type", "")
 
             # Obtener descripción completa (necesaria para Hevy)
-            descripcion = obtener_detalle_actividad(access_token, strava_id)
-            print(f"    → {a.get('name', '')} [{tipo}] desc: {len(descripcion)} chars")
+            detalle = obtener_detalle_actividad(access_token, strava_id)
+            descripcion = detalle["descripcion"]
+            calorias = detalle["calorias"] or a.get("calories")
+            print(f"    → {a.get('name', '')} [{tipo}] desc: {len(descripcion)} chars | cal: {calorias}")
 
             c.execute("""
                 INSERT INTO actividades (
@@ -101,7 +107,7 @@ def sincronizar_actividades(access_token, paginas=5):
                 a.get("average_heartrate"),
                 a.get("max_heartrate"),
                 a.get("total_elevation_gain"),
-                a.get("calories"),
+                calorias,
                 descripcion
             ))
             nuevas += 1

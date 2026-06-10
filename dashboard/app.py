@@ -538,6 +538,7 @@ def get_detalle_actividad(strava_id):
         result["splits"] = splits
         result["has_distance"] = has_distance
 
+        result["is_indoor"] = act["nombre"] and "indoor" in act["nombre"].lower() or act["tipo"] in ["VirtualRun","VirtualRide","Workout"]
     return result
 
 def get_detalle_fuerza(strava_id):
