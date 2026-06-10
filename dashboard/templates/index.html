@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Entrenador Personal — Dashboard</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0f0f13;color:#e8e6e0;min-height:100vh}
+    nav{padding:16px 32px;border-bottom:1px solid #1e1e26;display:flex;align-items:center;justify-content:space-between}
+    nav h1{font-size:18px;font-weight:500;color:#fff}
+    nav a{color:#6b6b78;text-decoration:none;font-size:13px;padding:6px 14px;border-radius:8px;border:1px solid #1e1e26;transition:all .2s}
+    nav a:hover{color:#fff;border-color:#333}
+    .top-bar{padding:20px 32px 0;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
+    .filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+    .filter-btn{padding:6px 14px;border-radius:20px;border:1px solid #1e1e26;background:transparent;color:#6b6b78;font-size:12px;cursor:pointer;transition:all .2s}
+    .filter-btn.active{background:#1D9E75;border-color:#1D9E75;color:#fff}
+    .period-btns{display:flex;gap:6px}
+    .period-btn{padding:5px 12px;border-radius:8px;border:1px solid #1e1e26;background:transparent;color:#6b6b78;font-size:12px;cursor:pointer;transition:all .2s}
+    .period-btn.active{background:#16161e;border-color:#444;color:#fff}
+    .section-title{font-size:12px;font-weight:500;color:#6b6b78;text-transform:uppercase;letter-spacing:.06em;padding:24px 32px 12px}
+    .grid-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;padding:0 32px}
+    .stat{background:#16161e;border:1px solid #1e1e26;border-radius:12px;padding:16px}
+    .stat .lbl{font-size:11px;color:#6b6b78;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+    .stat .val{font-size:24px;font-weight:500;color:#fff}
+    .stat .sub{font-size:11px;color:#6b6b78;margin-top:3px}
+    .grid-charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:12px;padding:0 32px}
+    .chart-card{background:#16161e;border:1px solid #1e1e26;border-radius:12px;padding:20px}
+    .chart-card h3{font-size:13px;font-weight:500;color:#b0aead;margin-bottom:14px}
+    .chart-wrap{position:relative;height:200px}
+    .fuerza-metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
+    .fm{background:#0f0f13;border-radius:8px;padding:12px;text-align:center}
+    .fm .fv{font-size:20px;font-weight:500;color:#7eaaef}
+    .fm .fl{font-size:11px;color:#6b6b78;margin-top:2px}
+    .eventos-list{padding:0 32px 12px}
+    .evento{background:#16161e;border:1px solid #1e1e26;border-radius:10px;padding:14px 18px;margin-bottom:8px;display:flex;align-items:center;gap:16px}
+    .evento-dias{font-size:22px;font-weight:500;color:#fff;min-width:40px;text-align:center}
+    .evento-dias span{display:block;font-size:10px;color:#6b6b78;font-weight:400}
+    .evento-info .nombre{font-size:14px;color:#fff}
+    .evento-info .sub{font-size:12px;color:#6b6b78;margin-top:2px}
+    .badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;margin-left:8px}
+    .badge.competencia{background:#1e2a1e;color:#7ecb8f}
+    .badge.parcial,.badge.examen{background:#2a221e;color:#f0c040}
+    .badge.otro{background:#1e1e2a;color:#7eaaef}
+    .tabla-wrap{padding:0 32px 32px}
+    .tabla-card{background:#16161e;border:1px solid #1e1e26;border-radius:12px;padding:20px}
+    .tabla-card h3{font-size:13px;font-weight:500;color:#b0aead;margin-bottom:14px}
+    table{width:100%;border-collapse:collapse;font-size:12px}
+    th{text-align:left;color:#6b6b78;font-weight:400;padding:8px 10px;border-bottom:1px solid #1e1e26}
+    td{padding:9px 10px;border-bottom:1px solid #1a1a22;color:#c8c6c0}
+    tr:last-child td{border-bottom:none}
+    .tipo-badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px}
+    .run{background:#1e2a1e;color:#7ecb8f}
+    .ride{background:#1e222a;color:#7eaaef}
+    .swim{background:#1a2228;color:#7ed4ef}
+    .weighttraining{background:#1e222a;color:#7eaaef}
+    .hidden{display:none !important}
+    @media(max-width:600px){
+      .grid-charts{grid-template-columns:1fr;padding:0 16px}
+      .grid-stats{padding:0 16px}
+      .top-bar,.section-title,.eventos-list,.tabla-wrap{padding-left:16px;padding-right:16px}
+      .fuerza-metrics{grid-template-columns:repeat(2,1fr)}
+      .top-bar{flex-direction:column;align-items:flex-start}
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <h1>Entrenador Personal</h1>
+  <a href="/agente">Hablar con el agente</a>
+</nav>
+
+<div class="top-bar">
+  <div class="filters">
+    <span style="font-size:12px;color:#6b6b78;margin-right:4px">Vista:</span>
+    <button class="filter-btn active" onclick="setFiltro('all',this)">Todo</button>
+    <button class="filter-btn" onclick="setFiltro('Run',this)">Run</button>
+    <button class="filter-btn" onclick="setFiltro('Ride',this)">Ride</button>
+    <button class="filter-btn" onclick="setFiltro('Swim',this)">Swim</button>
+    <button class="filter-btn" onclick="setFiltro('WeightTraining',this)">Fuerza</button>
+  </div>
+  <div class="period-btns">
+    <span style="font-size:12px;color:#6b6b78;margin-right:4px">Periodo:</span>
+    <button class="period-btn active" onclick="setPeriodo(7,this)">Semana</button>
+    <button class="period-btn" onclick="setPeriodo(30,this)">30 dias</button>
+    <button class="period-btn" onclick="setPeriodo(90,this)">3 meses</button>
+    <button class="period-btn" onclick="setPeriodo(3650,this)">Todo</button>
+  </div>
+</div>
+
+<p class="section-title">Resumen</p>
+<div class="grid-stats" id="stats-container">
+  <div class="stat"><div class="lbl">Cargando...</div></div>
+</div>
+
+<!-- SECCION: cardio (todo / run / ride / swim) -->
+<div id="seccion-cardio">
+  <p class="section-title">Carga de entrenamiento</p>
+  <div class="grid-charts">
+    <div class="chart-card">
+      <h3>Distancia (km)</h3>
+      <div class="chart-wrap"><canvas id="chartKm"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3>Horas por disciplina</h3>
+      <div class="chart-wrap"><canvas id="chartHoras"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3>Frecuencia cardiaca media</h3>
+      <div class="chart-wrap"><canvas id="chartFC"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- SECCION: fuerza -->
+<div id="seccion-fuerza" class="hidden">
+  <p class="section-title">Fuerza — Weight Training</p>
+  <div style="padding:0 32px 16px">
+    <div class="fuerza-metrics" id="fuerza-metrics">
+      <div class="fm"><div class="fv" id="fw-workouts">-</div><div class="fl">Workouts</div></div>
+      <div class="fm"><div class="fv" id="fw-duration">-</div><div class="fl">Duracion est.</div></div>
+      <div class="fm"><div class="fv" id="fw-volumen">-</div><div class="fl">Volumen (kg)</div></div>
+      <div class="fm"><div class="fv" id="fw-sets">-</div><div class="fl">Sets totales</div></div>
+    </div>
+  </div>
+  <div class="grid-charts">
+    <div class="chart-card">
+      <h3>Distribucion muscular (sets por grupo)</h3>
+      <div class="chart-wrap"><canvas id="chartRadar"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3>Minutos semanales de fuerza</h3>
+      <div class="chart-wrap"><canvas id="chartVolumen"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<p class="section-title">Proximos eventos</p>
+<div class="eventos-list" id="eventos-container">
+  <div style="color:#6b6b78;font-size:13px;padding:8px">Cargando eventos...</div>
+</div>
+
+<p class="section-title">Actividades recientes</p>
+<div class="tabla-wrap">
+  <div class="tabla-card">
+    <table>
+        <thead>
+            <tr>
+                <th>Date</th><th>Name</th><th>Type</th>
+                <th>Distance</th><th>Time</th><th>Avg HR</th><th>Speed</th>
+            </tr>
+        </thead>
+      <tbody id="tabla-body">
+        <tr><td colspan="7" style="color:#6b6b78;text-align:center;padding:20px">Cargando...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+let filtroActivo = 'all'
+let periodoActivo = 7
+let chartKm, chartHoras, chartFC, chartRadar, chartVolumen
+
+const COLORES = {
+  Run:'#7ecb8f', Ride:'#7eaaef', Swim:'#7ed4ef', WeightTraining:'#7eaaef'
+}
+
+function formatTiempo(seg){
+  if(!seg) return '-'
+  const h = Math.floor(seg/3600), m = Math.floor((seg%3600)/60)
+  return h > 0 ? `${h}h ${m}m` : `${m}m`
+}
+
+function tipoBadge(tipo){
+  const t = (tipo||'').toLowerCase()
+  return `<span class="tipo-badge ${t}">${tipo||'-'}</span>`
+}
+
+function semanasDesdeDias(dias){
+  return Math.max(1, Math.ceil(dias / 7))
+}
+
+function setFiltro(tipo, btn){
+  filtroActivo = tipo
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'))
+  btn.classList.add('active')
+
+  const esFuerza = tipo === 'WeightTraining'
+  document.getElementById('seccion-cardio').classList.toggle('hidden', esFuerza)
+  document.getElementById('seccion-fuerza').classList.toggle('hidden', !esFuerza && tipo !== 'all')
+
+  // En "todo" mostramos ambas secciones
+  if(tipo === 'all'){
+    document.getElementById('seccion-cardio').classList.remove('hidden')
+    document.getElementById('seccion-fuerza').classList.remove('hidden')
+  }
+
+  recargarTodo()
+}
+
+function setPeriodo(dias, btn){
+  periodoActivo = dias
+  document.querySelectorAll('.period-btn').forEach(b=>b.classList.remove('active'))
+  btn.classList.add('active')
+  recargarTodo()
+}
+
+function recargarTodo(){
+  cargarStats()
+  cargarTabla()
+  if(filtroActivo !== 'WeightTraining'){
+    cargarGraficaKm()
+    cargarGraficaHoras()
+    cargarGraficaFC()
+  }
+  if(filtroActivo === 'WeightTraining' || filtroActivo === 'all'){
+    cargarFuerza()
+  }
+}
+
+function cargarStats(){
+  fetch(`/api/stats?dias=${periodoActivo}`).then(r=>r.json()).then(d=>{
+    const key = filtroActivo === 'WeightTraining' ? 'fuerza' : filtroActivo.toLowerCase()
+    let html = ''
+
+    if(filtroActivo === 'all'){
+      html = `
+        <div class="stat"><div class="lbl">Actividades</div><div class="val">${d.total_actividades}</div></div>
+        <div class="stat"><div class="lbl">Distancia total</div><div class="val">${d.distancia_total}</div><div class="sub">km</div></div>
+        <div class="stat"><div class="lbl">Horas totales</div><div class="val">${d.tiempo_total_horas}</div><div class="sub">horas</div></div>
+        <div class="stat"><div class="lbl">FC media</div><div class="val">${d.fc_media||'-'}</div><div class="sub">bpm</div></div>
+        <div class="stat"><div class="lbl">Volumen fuerza</div><div class="val">${d.volumen_total_kg||0}</div><div class="sub">kg</div></div>
+        <div class="stat"><div class="lbl">Sets fuerza</div><div class="val">${d.total_sets||0}</div></div>
+      `
+    } else if(filtroActivo === 'WeightTraining'){
+      html = `
+        <div class="stat"><div class="lbl">Workouts</div><div class="val">${d['count_fuerza']||0}</div></div>
+        <div class="stat"><div class="lbl">Horas</div><div class="val">${d['horas_fuerza']||0}</div><div class="sub">horas</div></div>
+        <div class="stat"><div class="lbl">Volumen</div><div class="val">${d.volumen_total_kg||0}</div><div class="sub">kg</div></div>
+        <div class="stat"><div class="lbl">Sets totales</div><div class="val">${d.total_sets||0}</div></div>
+      `
+    } else {
+      html = `
+        <div class="stat"><div class="lbl">Sesiones</div><div class="val">${d['count_'+key]||0}</div></div>
+        <div class="stat"><div class="lbl">Distancia</div><div class="val">${d['km_'+key]||0}</div><div class="sub">km</div></div>
+        <div class="stat"><div class="lbl">Horas</div><div class="val">${d['horas_'+key]||0}</div><div class="sub">horas</div></div>
+        <div class="stat"><div class="lbl">FC media</div><div class="val">${d.fc_media||'-'}</div><div class="sub">bpm</div></div>
+      `
+    }
+    document.getElementById('stats-container').innerHTML = html
+  })
+}
+
+function cargarTabla(){
+  fetch(`/api/actividades_recientes?tipo=${filtroActivo}&dias=${periodoActivo}`).then(r=>r.json()).then(data=>{
+    const tbody = document.getElementById('tabla-body')
+    if(!data.length){
+      tbody.innerHTML="<tr><td colspan='7' style='color:#6b6b78;text-align:center;padding:20px'>No activities in this period</td></tr>"
+      return
+    }
+    tbody.innerHTML = data.map(a=>`
+      <tr style="cursor:pointer" onclick="window.location='/actividad/${a.strava_id}'"
+          onmouseover="this.style.background='#1a1a22'" onmouseout="this.style.background=''">
+        <td>${a.fecha}</td>
+        <td style="color:#fff">${a.nombre||'-'}</td>
+        <td>${tipoBadge(a.tipo)}</td>
+        <td>${a.distancia_km ? a.distancia_km+' km' : '-'}</td>
+        <td>${formatTiempo(a.tiempo_segundos)}</td>
+        <td>${a.fc_media ? a.fc_media+' bpm' : '-'}</td>
+        <td>${a.velocidad_media ? a.velocidad_media+' km/h' : '-'}</td>
+      </tr>`).join('')
+  })
+}
+
+
+function cargarGraficaKm(){
+  fetch(`/api/distancia_diaria?tipo=${filtroActivo}&dias=${periodoActivo}`).then(r=>r.json()).then(data=>{
+    if(chartKm) chartKm.destroy()
+
+    // Si es "all" separamos por tipo con colores distintos
+    if(filtroActivo === 'all'){
+      const tipos = ['Run','Ride','Swim']
+      const fechas = [...new Set(data.map(d=>d.fecha))].sort()
+      const datasets = tipos.map(tipo=>({
+        label: tipo,
+        data: fechas.map(f=>{
+          const row = data.find(d=>d.fecha===f && d.tipo===tipo)
+          return row ? row.distancia : null
+        }),
+        backgroundColor: COLORES[tipo]+'cc',
+        borderRadius: 4,
+        stack: 'stack'
+      }))
+      chartKm = new Chart(document.getElementById('chartKm'),{
+        type:'bar',
+        data:{labels:fechas, datasets},
+        options:{responsive:true,maintainAspectRatio:false,
+          plugins:{legend:{labels:{color:'#b0aead',font:{size:10},boxWidth:10}}},
+          scales:{
+            x:{ticks:{color:'#6b6b78',font:{size:10},maxTicksLimit:12},grid:{color:'#1e1e26'},stacked:true},
+            y:{ticks:{color:'#6b6b78',font:{size:10}},grid:{color:'#1e1e26'},stacked:true,
+               title:{display:true,text:'km',color:'#6b6b78',font:{size:10}}}
+          }}
+      })
+    } else {
+      chartKm = new Chart(document.getElementById('chartKm'),{
+        type:'bar',
+        data:{
+          labels: data.map(d=>d.fecha),
+          datasets:[{
+            label:'km',
+            data: data.map(d=>d.distancia),
+            backgroundColor: COLORES[filtroActivo]||'#1D9E75',
+            borderRadius:4
+          }]
+        },
+        options:{responsive:true,maintainAspectRatio:false,
+          plugins:{legend:{display:false}},
+          scales:{
+            x:{ticks:{color:'#6b6b78',font:{size:10},maxTicksLimit:12},grid:{color:'#1e1e26'}},
+            y:{ticks:{color:'#6b6b78',font:{size:10}},grid:{color:'#1e1e26'},
+               title:{display:true,text:'km',color:'#6b6b78',font:{size:10}}}
+          }}
+      })
+    }
+  })
+}
+
+function cargarGraficaHoras(){
+  fetch(`/api/horas_semanales?semanas=${semanasDesdeDias(periodoActivo)}`).then(r=>r.json()).then(data=>{
+    const tipos = filtroActivo === 'all'
+      ? ['Run','Ride','Swim','WeightTraining']
+      : [filtroActivo]
+    const semanas = [...new Set(data.map(d=>d.semana))].sort()
+    const datasets = tipos.map(tipo=>({
+      label:tipo,
+      data:semanas.map(s=>{
+        const row = data.find(d=>d.semana===s && d.tipo===tipo)
+        return row ? row.horas : 0
+      }),
+      backgroundColor:COLORES[tipo]+'aa',
+      borderRadius:3,
+      stack:'stack'
+    }))
+    if(chartHoras) chartHoras.destroy()
+    chartHoras = new Chart(document.getElementById('chartHoras'),{
+      type:'bar',
+      data:{labels:semanas,datasets},
+      options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{labels:{color:'#b0aead',font:{size:10},boxWidth:10}}},
+        scales:{
+          x:{ticks:{color:'#6b6b78',font:{size:10}},grid:{color:'#1e1e26'},stacked:true},
+          y:{ticks:{color:'#6b6b78',font:{size:10}},grid:{color:'#1e1e26'},stacked:true}
+        }}
+    })
+  })
+}
+
+function cargarGraficaFC(){
+  fetch(`/api/fc_historico?tipo=${filtroActivo}&dias=${periodoActivo}`).then(r=>r.json()).then(data=>{
+    if(chartFC) chartFC.destroy()
+    chartFC = new Chart(document.getElementById('chartFC'),{
+      type:'line',
+      data:{
+        labels:data.map(d=>d.fecha),
+        datasets:[
+          {label:'FC Media',data:data.map(d=>d.fc_media),borderColor:'#e07b4f',backgroundColor:'rgba(224,123,79,0.1)',tension:0.3,fill:true,pointRadius:3},
+          {label:'FC Maxima',data:data.map(d=>d.fc_maxima),borderColor:'#e04f4f',backgroundColor:'transparent',tension:0.3,pointRadius:2,borderDash:[4,3]}
+        ]
+      },
+      options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{labels:{color:'#6b6b78',font:{size:10}}}},
+        scales:{
+          x:{ticks:{color:'#6b6b78',font:{size:10},maxTicksLimit:8},grid:{color:'#1e1e26'}},
+          y:{ticks:{color:'#6b6b78',font:{size:10}},grid:{color:'#1e1e26'}}
+        }}
+    })
+  })
+}
+
+function cargarFuerza(){
+  fetch(`/api/metricas_fuerza?dias=${periodoActivo}`).then(r=>r.json()).then(d=>{
+    document.getElementById('fw-workouts').textContent = d.workouts||0
+    document.getElementById('fw-duration').textContent = d.workouts ? Math.round(d.workouts*55)+'min' : '-'
+    document.getElementById('fw-volumen').textContent = d.volumen ? (d.volumen/1000).toFixed(1)+'t' : 0
+    document.getElementById('fw-sets').textContent = d.sets||0
+  })
+
+  fetch(`/api/radar_musculos?dias=${periodoActivo}`).then(r=>r.json()).then(d=>{
+    const labels = ['legs','back','chest','shoulders','arms','core']
+    const labelMap = {legs:'Piernas',back:'Espalda',chest:'Pecho',shoulders:'Hombros',arms:'Brazos',core:'Core'}
+    if(chartRadar) chartRadar.destroy()
+    chartRadar = new Chart(document.getElementById('chartRadar'),{
+      type:'radar',
+      data:{
+        labels:labels.map(l=>labelMap[l]),
+        datasets:[{
+          label:'Sets',data:labels.map(l=>d[l]||0),
+          borderColor:'#7eaaef',backgroundColor:'rgba(126,170,239,0.15)',
+          pointBackgroundColor:'#7eaaef',borderWidth:2
+        }]
+      },
+      options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false}},
+        scales:{r:{
+          ticks:{color:'#6b6b78',font:{size:9},backdropColor:'transparent'},
+          grid:{color:'#2a2a36'},
+          pointLabels:{color:'#b0aead',font:{size:11}}
+        }}}
+    })
+  })
+
+  fetch(`/api/horas_semanales?semanas=${semanasDesdeDias(periodoActivo)}`).then(r=>r.json()).then(hdata=>{
+    const semanas = [...new Set(hdata.map(d=>d.semana))].sort()
+    const vals = semanas.map(s=>{
+      const row = hdata.find(d=>d.semana===s && d.tipo==='WeightTraining')
+      return row ? Math.round(row.horas*60) : 0
+    })
+    if(chartVolumen) chartVolumen.destroy()
+    chartVolumen = new Chart(document.getElementById('chartVolumen'),{
+      type:'bar',
+      data:{
+        labels:semanas,
+        datasets:[{label:'min',data:vals,backgroundColor:'#7eaaef99',borderRadius:5}]
+      },
+      options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false}},
+        scales:{
+          x:{ticks:{color:'#6b6b78',font:{size:10}},grid:{color:'#1e1e26'}},
+          y:{ticks:{color:'#6b6b78',font:{size:10}},grid:{color:'#1e1e26'}}
+        }}
+    })
+  })
+}
+
+function cargarEventos(){
+  fetch('/api/eventos').then(r=>r.json()).then(data=>{
+    const c = document.getElementById('eventos-container')
+    if(!data.length){
+      c.innerHTML='<div style="color:#6b6b78;font-size:13px;padding:8px 0">No hay eventos proximos. Agrega uno en calendar_sync.py</div>'
+      return
+    }
+    c.innerHTML = data.map(e=>`
+      <div class="evento">
+        <div class="evento-dias">${e.dias_restantes}<span>dias</span></div>
+        <div class="evento-info">
+          <div class="nombre">${e.nombre}<span class="badge ${e.tipo}">${e.tipo}</span></div>
+          <div class="sub">${e.fecha}${e.descripcion?' · '+e.descripcion:''}</div>
+        </div>
+      </div>`).join('')
+  })
+}
+
+recargarTodo()
+cargarEventos()
+</script>
+</body>
+</html>

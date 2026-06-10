@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.pyc
+
+# Entornos
+.env
+venv/
+.venv/
+
+# Base de datos
+*.db
+
+# Google
+google_credentials.json
+google_token.pickle
+
+# VSCode
+.vscode/
+
+# Logs
+*.log
+
+# Sistema
+.DS_Store
+Thumbs.db

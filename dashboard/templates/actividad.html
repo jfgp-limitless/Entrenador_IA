@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Activity Detail</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0f0f13;color:#e8e6e0;min-height:100vh}
+    nav{padding:16px 32px;border-bottom:1px solid #1e1e26;display:flex;align-items:center;justify-content:space-between}
+    nav h1{font-size:18px;font-weight:500;color:#fff}
+    nav a{color:#6b6b78;text-decoration:none;font-size:13px;padding:6px 14px;border-radius:8px;border:1px solid #1e1e26}
+    .hero{padding:28px 32px 0}
+    .hero h2{font-size:24px;font-weight:500;color:#fff;margin-bottom:4px}
+    .hero .meta{font-size:13px;color:#6b6b78;margin-bottom:20px}
+    .grid-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:24px}
+    .stat{background:#16161e;border:1px solid #1e1e26;border-radius:10px;padding:14px}
+    .stat .lbl{font-size:11px;color:#6b6b78;text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px}
+    .stat .val{font-size:22px;font-weight:500;color:#fff}
+    .stat .sub{font-size:11px;color:#6b6b78;margin-top:2px}
+    .section{padding:0 32px 24px}
+    .section h3{font-size:13px;font-weight:500;color:#b0aead;margin-bottom:12px;text-transform:uppercase;letter-spacing:.05em}
+    .chart-card{background:#16161e;border:1px solid #1e1e26;border-radius:12px;padding:20px;margin-bottom:12px}
+    .chart-card .chart-title{font-size:13px;color:#b0aead;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center}
+    .chart-wrap{position:relative;height:180px}
+    .grid-charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:12px}
+    /* splits table */
+    .splits-table{width:100%;border-collapse:collapse;font-size:13px}
+    .splits-table th{text-align:left;color:#6b6b78;font-weight:400;padding:8px 12px;border-bottom:1px solid #1e1e26}
+    .splits-table td{padding:10px 12px;border-bottom:1px solid #1a1a22;color:#c8c6c0}
+    .splits-table tr:last-child td{border-bottom:none}
+    .pace-bar-wrap{display:flex;align-items:center;gap:8px}
+    .pace-bar{height:6px;background:#1D9E75;border-radius:3px;min-width:4px}
+    /* exercises */
+    .ejercicio{background:#16161e;border:1px solid #1e1e26;border-radius:10px;padding:16px;margin-bottom:10px}
+    .ejercicio .nombre{font-size:15px;font-weight:500;color:#fff;margin-bottom:4px}
+    .ejercicio .musculo{font-size:11px;color:#7eaaef;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px}
+    .series-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:8px}
+    .serie{background:#0f0f13;border-radius:6px;padding:8px;text-align:center}
+    .serie .set-num{font-size:10px;color:#6b6b78;margin-bottom:3px}
+    .serie .set-val{font-size:14px;font-weight:500;color:#fff}
+    .serie .set-reps{font-size:11px;color:#6b6b78;margin-top:1px}
+    .radar-wrap{position:relative;height:260px}
+    .vol-badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:12px;background:#1e222a;color:#7eaaef;margin-left:8px}
+    @media(max-width:600px){
+      .hero,.section{padding-left:16px;padding-right:16px}
+      .grid-charts{grid-template-columns:1fr}
+      nav{padding:14px 16px}
+    }
+  </style>
+</head>
+<body>
+<nav>
+  <h1>Activity Detail</h1>
+  <a href="/">← Dashboard</a>
+</nav>
+
+<div id="content" style="padding-bottom:40px">
+  <div style="padding:40px;text-align:center;color:#6b6b78">Loading...</div>
+</div>
+
+<script>
+const stravaId = "{{ strava_id }}"
+
+function formatTime(sec){
+  if(!sec) return '-'
+  const h=Math.floor(sec/3600),m=Math.floor((sec%3600)/60),s=sec%60
+  return h>0?`${h}h ${m}m`:`${m}m ${s}s`
+}
+
+function renderCardio(d){
+  const s = d.streams || {}
+  const splits = d.splits || []
+  const hasHR = s.heartrate && s.heartrate.length > 0
+  const hasPace = s.pace && s.pace.length > 0
+  const hasAlt = s.altitude && s.altitude.length > 0
+
+  const maxPace = splits.length ? Math.max(...splits.map(x=>x.pace_seg)) : 1
+  const minPace = splits.length ? Math.min(...splits.map(x=>x.pace_seg)) : 1
+
+  document.getElementById('content').innerHTML = `
+    <div class="hero">
+      <h2>${d.nombre||'Activity'}</h2>
+      <div class="meta">${d.fecha} &nbsp;·&nbsp; ${d.tipo}</div>
+      <div class="grid-stats">
+        <div class="stat"><div class="lbl">Distance</div><div class="val">${d.distancia_km||0}</div><div class="sub">km</div></div>
+        <div class="stat"><div class="lbl">Time</div><div class="val">${formatTime(d.tiempo_segundos)}</div></div>
+        <div class="stat"><div class="lbl">Avg HR</div><div class="val">${d.fc_media||'-'}</div><div class="sub">bpm</div></div>
+        <div class="stat"><div class="lbl">Max HR</div><div class="val">${d.fc_maxima||'-'}</div><div class="sub">bpm</div></div>
+        <div class="stat"><div class="lbl">Avg Speed</div><div class="val">${d.velocidad_media||'-'}</div><div class="sub">km/h</div></div>
+        <div class="stat"><div class="lbl">Elevation</div><div class="val">${d.desnivel_positivo||0}</div><div class="sub">m</div></div>
+        <div class="stat"><div class="lbl">Calories</div><div class="val">${d.calorias||'-'}</div></div>
+      </div>
+    </div>
+
+    ${hasPace||hasHR ? `
+    <div class="section">
+      <div class="grid-charts">
+        ${hasPace ? `
+        <div class="chart-card">
+          <div class="chart-title">Pace (min/km)</div>
+          <div class="chart-wrap"><canvas id="chartPace"></canvas></div>
+        </div>` : ''}
+        ${hasHR ? `
+        <div class="chart-card">
+          <div class="chart-title">Heart Rate (bpm)</div>
+          <div class="chart-wrap"><canvas id="chartHR"></canvas></div>
+        </div>` : ''}
+        ${hasAlt ? `
+        <div class="chart-card">
+          <div class="chart-title">Altitude (m)</div>
+          <div class="chart-wrap"><canvas id="chartAlt"></canvas></div>
+        </div>` : ''}
+      </div>
+    </div>` : ''}
+
+    ${splits.length ? `
+    <div class="section">
+      <h3>Splits by kilometer</h3>
+      <div class="chart-card" style="padding:0;overflow:hidden">
+        <table class="splits-table">
+          <thead>
+            <tr>
+              <th>KM</th>
+              <th>Pace</th>
+              <th>Pace visual</th>
+              <th>Avg HR</th>
+              <th>Avg Speed</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${splits.map(sp=>{
+              const barW = Math.round((1-(sp.pace_seg-minPace)/(maxPace-minPace+1))*120)+20
+              return `<tr>
+                <td>${sp.km}</td>
+                <td style="font-family:monospace;font-size:14px;color:#fff">${sp.pace_str} min/km</td>
+                <td><div class="pace-bar-wrap"><div class="pace-bar" style="width:${barW}px"></div></div></td>
+                <td>${sp.fc_media ? sp.fc_media+' bpm' : '-'}</td>
+                <td>${sp.vel_media ? sp.vel_media+' km/h' : '-'}</td>
+              </tr>`
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>` : ''}
+  `
+
+  const chartOpts = (label, color) => ({
+    responsive:true, maintainAspectRatio:false,
+    plugins:{legend:{display:false}},
+    elements:{point:{radius:0}},
+    scales:{
+      x:{ticks:{color:'#6b6b78',font:{size:10},maxTicksLimit:8},grid:{color:'#1e1e26'}},
+      y:{ticks:{color:'#6b6b78',font:{size:10}},grid:{color:'#1e1e26'}}
+    }
+  })
+
+  if(hasPace){
+    new Chart(document.getElementById('chartPace'),{
+      type:'line',
+      data:{
+        labels: s.distance,
+        datasets:[{
+          label:'Pace',data:s.pace,
+          borderColor:'#1D9E75',backgroundColor:'rgba(29,158,117,0.1)',
+          tension:0.3,fill:true
+        }]
+      },
+      options:{...chartOpts(),scales:{
+        x:{ticks:{color:'#6b6b78',font:{size:10},maxTicksLimit:8},grid:{color:'#1e1e26'},title:{display:true,text:'km',color:'#6b6b78',font:{size:10}}},
+        y:{ticks:{color:'#6b6b78',font:{size:10}},grid:{color:'#1e1e26'},reverse:true,title:{display:true,text:'min/km',color:'#6b6b78',font:{size:10}}}
+      }}
+    })
+  }
+
+  if(hasHR){
+    new Chart(document.getElementById('chartHR'),{
+      type:'line',
+      data:{
+        labels:s.distance,
+        datasets:[{
+          label:'HR',data:s.heartrate,
+          borderColor:'#e07b4f',backgroundColor:'rgba(224,123,79,0.1)',
+          tension:0.3,fill:true
+        }]
+      },
+      options:chartOpts()
+    })
+  }
+
+  if(hasAlt){
+    new Chart(document.getElementById('chartAlt'),{
+      type:'line',
+      data:{
+        labels:s.distance,
+        datasets:[{
+          label:'Altitude',data:s.altitude,
+          borderColor:'#7eaaef',backgroundColor:'rgba(126,170,239,0.1)',
+          tension:0.3,fill:true
+        }]
+      },
+      options:chartOpts()
+    })
+  }
+}
+
+function renderFuerza(d){
+  const w = d.workout
+  if(!w){ document.getElementById('content').innerHTML='<div style="padding:32px;color:#6b6b78">No strength data found for this activity.</div>'; return }
+
+  const muscLabels = {legs:'Legs',back:'Back',chest:'Chest',shoulders:'Shoulders',arms:'Arms',core:'Core',other:'Other'}
+  const muscColors = {legs:'#7ecb8f',back:'#7eaaef',chest:'#e07b4f',shoulders:'#f0c040',arms:'#cf8fef',core:'#7ed4ef',other:'#b0aead'}
+
+  document.getElementById('content').innerHTML = `
+    <div class="hero">
+      <h2>${d.nombre||'Workout'}</h2>
+      <div class="meta">${d.fecha} &nbsp;·&nbsp; Weight Training</div>
+      <div class="grid-stats">
+        <div class="stat"><div class="lbl">Exercises</div><div class="val">${w.ejercicios.length}</div></div>
+        <div class="stat"><div class="lbl">Total Sets</div><div class="val">${w.total_sets}</div></div>
+        <div class="stat"><div class="lbl">Total Reps</div><div class="val">${w.total_reps}</div></div>
+        <div class="stat"><div class="lbl">Volume</div><div class="val">${(w.volumen_kg/1000).toFixed(1)}</div><div class="sub">tons</div></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="grid-charts" style="margin-bottom:20px">
+        <div class="chart-card">
+          <div class="chart-title">Muscle Distribution (sets)</div>
+          <div class="radar-wrap"><canvas id="chartRadar"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Volume by Muscle Group (kg)</div>
+          <div class="chart-wrap"><canvas id="chartVolMuscle"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>Exercises</h3>
+      ${w.ejercicios.map(e=>`
+        <div class="ejercicio">
+          <div class="nombre">${e.nombre} <span class="vol-badge">${Math.round(e.series.reduce((a,s)=>a+s.peso_kg*s.reps,0))} kg vol</span></div>
+          <div class="musculo">${muscLabels[e.musculo]||e.musculo}</div>
+          <div class="series-grid">
+            ${e.series.map((s,i)=>`
+              <div class="serie">
+                <div class="set-num">Set ${i+1}</div>
+                <div class="set-val">${s.peso_kg} kg</div>
+                <div class="set-reps">${s.reps} reps</div>
+              </div>`).join('')}
+          </div>
+        </div>`).join('')}
+    </div>
+  `
+
+  // Radar
+  const radarKeys = ['legs','back','chest','shoulders','arms','core']
+  new Chart(document.getElementById('chartRadar'),{
+    type:'radar',
+    data:{
+      labels:radarKeys.map(k=>muscLabels[k]||k),
+      datasets:[{
+        label:'Sets',
+        data:radarKeys.map(k=>w.musculos[k]||0),
+        borderColor:'#7eaaef',backgroundColor:'rgba(126,170,239,0.15)',
+        pointBackgroundColor:'#7eaaef',borderWidth:2
+      }]
+    },
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{r:{
+        ticks:{color:'#6b6b78',font:{size:9},backdropColor:'transparent'},
+        grid:{color:'#2a2a36'},
+        pointLabels:{color:'#b0aead',font:{size:11}}
+      }}}
+  })
+
+  // Volumen por músculo
+  const volPorMusculo = {}
+  w.ejercicios.forEach(e=>{
+    const vol = e.series.reduce((a,s)=>a+s.peso_kg*s.reps,0)
+    volPorMusculo[e.musculo] = (volPorMusculo[e.musculo]||0) + vol
+  })
+  const muscEntries = Object.entries(volPorMusculo).sort((a,b)=>b[1]-a[1])
+  new Chart(document.getElementById('chartVolMuscle'),{
+    type:'bar',
+    data:{
+      labels:muscEntries.map(([k])=>muscLabels[k]||k),
+      datasets:[{
+        label:'kg',
+        data:muscEntries.map(([,v])=>Math.round(v)),
+        backgroundColor:muscEntries.map(([k])=>muscColors[k]||'#b0aead'),
+        borderRadius:5
+      }]
+    },
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{
+        x:{ticks:{color:'#6b6b78',font:{size:11}},grid:{color:'#1e1e26'}},
+        y:{ticks:{color:'#6b6b78',font:{size:10}},grid:{color:'#1e1e26'}}
+      }}
+  })
+}
+
+// Cargar datos
+fetch(`/api/actividad/${stravaId}`)
+  .then(r=>r.json())
+  .then(d=>{
+    if(d.tipo === 'WeightTraining') renderFuerza(d)
+    else renderCardio(d)
+  })
+  .catch(()=>{
+    document.getElementById('content').innerHTML='<div style="padding:32px;color:#e04f4f">Error loading activity.</div>'
+  })
+</script>
+</body>
+</html>
