@@ -1,67 +1,268 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Agente — Entrenador Personal</title>
+  <title>Coach Aria</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
-    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0f0f13;color:#e8e6e0;height:100vh;display:flex;flex-direction:column}
-    nav{padding:16px 32px;border-bottom:1px solid #1e1e26;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
-    nav h1{font-size:18px;font-weight:500;color:#fff}
-    nav a{color:#6b6b78;text-decoration:none;font-size:13px;padding:6px 14px;border-radius:8px;border:1px solid #1e1e26}
-    .chat-wrap{flex:1;overflow-y:auto;padding:24px 32px;display:flex;flex-direction:column;gap:16px}
-    .msg{max-width:75%;padding:12px 16px;border-radius:12px;font-size:14px;line-height:1.6;white-space:pre-wrap}
-    .msg.user{background:#1D9E75;color:#fff;align-self:flex-end;border-radius:12px 12px 2px 12px}
-    .msg.agent{background:#16161e;border:1px solid #1e1e26;color:#e8e6e0;align-self:flex-start;border-radius:12px 12px 12px 2px}
-    .msg.typing{color:#6b6b78;font-style:italic}
-    .sugerencias{display:flex;flex-wrap:wrap;gap:8px;padding:0 32px 12px;flex-shrink:0}
-    .sug{padding:7px 14px;border-radius:20px;border:1px solid #1e1e26;background:transparent;color:#b0aead;font-size:12px;cursor:pointer;transition:all .2s}
-    .sug:hover{border-color:#1D9E75;color:#1D9E75}
-    .input-wrap{padding:16px 32px;border-top:1px solid #1e1e26;display:flex;gap:10px;flex-shrink:0}
-    textarea{flex:1;background:#16161e;border:1px solid #1e1e26;border-radius:10px;padding:10px 14px;color:#e8e6e0;font-size:14px;font-family:inherit;resize:none;height:44px;max-height:120px;outline:none;transition:border .2s}
-    textarea:focus{border-color:#1D9E75}
-    button#send{padding:10px 20px;background:#1D9E75;border:none;border-radius:10px;color:#fff;font-size:14px;cursor:pointer;transition:background .2s;white-space:nowrap}
-    button#send:hover{background:#16876a}
-    button#send:disabled{background:#1e1e26;color:#6b6b78;cursor:not-allowed}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#080810;color:#e8e6e0;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+
+    /* NAV */
+    nav{padding:0 20px;height:52px;border-bottom:1px solid #1a1a2e;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;background:#0a0a16}
+    .nav-left{display:flex;align-items:center;gap:12px}
+    .nav-logo{font-size:16px;font-weight:600;background:linear-gradient(135deg,#7eaaef,#4a9eff);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+    nav a{color:#6b6b78;text-decoration:none;font-size:12px;padding:5px 12px;border-radius:6px;border:1px solid #1e1e2e;transition:all .2s}
+    nav a:hover{color:#fff;border-color:#2a2a3e}
+
+    /* LAYOUT */
+    .app{display:flex;flex:1;overflow:hidden}
+
+    /* SIDEBAR */
+    .sidebar{width:240px;flex-shrink:0;background:#0a0a16;border-right:1px solid #1a1a2e;display:flex;flex-direction:column;overflow:hidden}
+    .sidebar-header{padding:16px;border-bottom:1px solid #1a1a2e}
+    .new-chat-btn{width:100%;padding:9px 14px;background:linear-gradient(135deg,#1a3a6e,#0d2447);border:1px solid #2a4a7e;border-radius:8px;color:#7eaaef;font-size:13px;cursor:pointer;transition:all .2s;text-align:left;display:flex;align-items:center;gap:8px}
+    .new-chat-btn:hover{background:linear-gradient(135deg,#1e4480,#112d57);border-color:#3a5a8e}
+    .new-chat-btn::before{content:'+';font-size:18px;font-weight:300}
+    .sidebar-section{font-size:10px;font-weight:600;color:#3a3a4e;text-transform:uppercase;letter-spacing:.08em;padding:12px 16px 6px}
+    .chat-list{flex:1;overflow-y:auto;padding:4px 8px}
+    .chat-item{padding:9px 10px;border-radius:8px;cursor:pointer;transition:all .15s;margin-bottom:2px;border:1px solid transparent}
+    .chat-item:hover{background:#12121e;border-color:#1e1e2e}
+    .chat-item.active{background:#0d1a30;border-color:#2a4a7e}
+    .chat-item .ci-title{font-size:13px;color:#c8c6c0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .chat-item .ci-date{font-size:10px;color:#3a3a4e;margin-top:2px}
+    .chat-item.active .ci-title{color:#7eaaef}
+    .sidebar-footer{padding:12px;border-top:1px solid #1a1a2e}
+    .sidebar-footer a{display:block;padding:8px 10px;border-radius:8px;color:#6b6b78;text-decoration:none;font-size:12px;border:1px solid #1a1a2e;text-align:center;transition:all .2s}
+    .sidebar-footer a:hover{color:#fff;border-color:#2a2a3e}
+
+    /* CHAT MAIN */
+    .chat-main{flex:1;display:flex;flex-direction:column;overflow:hidden;background:#080810}
+    .chat-header{padding:14px 24px;border-bottom:1px solid #1a1a2e;display:flex;align-items:center;gap:12px;flex-shrink:0}
+    .coach-avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#1a3a6e,#4a9eff);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+    .coach-info .name{font-size:15px;font-weight:500;color:#fff}
+    .coach-info .status{font-size:11px;color:#4a9eff;display:flex;align-items:center;gap:4px}
+    .status-dot{width:6px;height:6px;border-radius:50%;background:#4a9eff;animation:pulse 2s infinite}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+    .chat-messages{flex:1;overflow-y:auto;padding:24px;display:flex;flex-direction:column;gap:16px}
+    .chat-messages::-webkit-scrollbar{width:4px}
+    .chat-messages::-webkit-scrollbar-track{background:transparent}
+    .chat-messages::-webkit-scrollbar-thumb{background:#1e1e2e;border-radius:2px}
+
+    .msg-wrap{display:flex;gap:10px;align-items:flex-start}
+    .msg-wrap.user{flex-direction:row-reverse}
+    .msg-avatar{width:30px;height:30px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:13px}
+    .msg-avatar.aria{background:linear-gradient(135deg,#1a3a6e,#4a9eff)}
+    .msg-avatar.user{background:linear-gradient(135deg,#1a3a1a,#4acf8f)}
+    .msg-bubble{max-width:70%;padding:12px 16px;border-radius:14px;font-size:14px;line-height:1.65;white-space:pre-wrap}
+    .msg-bubble.aria{background:#0e0e1e;border:1px solid #1e1e2e;color:#e8e6e0;border-radius:4px 14px 14px 14px}
+    .msg-bubble.user{background:linear-gradient(135deg,#0d2447,#1a3a6e);border:1px solid #2a4a7e;color:#e8e6e0;border-radius:14px 4px 14px 14px}
+    .msg-bubble.typing{color:#4a6a8e;font-style:italic}
+
+    /* Sugerencias */
+    .suggestions{padding:0 24px 12px;display:flex;flex-wrap:wrap;gap:8px;flex-shrink:0}
+    .sug{padding:7px 14px;border-radius:20px;border:1px solid #1e1e2e;background:transparent;color:#7eaaef;font-size:12px;cursor:pointer;transition:all .2s;white-space:nowrap}
+    .sug:hover{border-color:#4a9eff;background:#0d1a30}
+
+    /* Input */
+    .input-area{padding:16px 24px;border-top:1px solid #1a1a2e;flex-shrink:0;background:#080810}
+    .input-wrap{display:flex;gap:10px;align-items:flex-end;background:#0e0e1e;border:1px solid #1e1e2e;border-radius:12px;padding:10px 14px;transition:border .2s}
+    .input-wrap:focus-within{border-color:#2a4a7e;box-shadow:0 0 0 3px rgba(74,158,255,0.06)}
+    textarea{flex:1;background:transparent;border:none;color:#e8e6e0;font-size:14px;font-family:inherit;resize:none;height:22px;max-height:120px;outline:none;line-height:1.5}
+    textarea::placeholder{color:#3a3a4e}
+    .send-btn{width:34px;height:34px;background:linear-gradient(135deg,#1a3a6e,#4a9eff);border:none;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .2s}
+    .send-btn:hover{background:linear-gradient(135deg,#1e4480,#5aafff)}
+    .send-btn:disabled{background:#1a1a2e;cursor:not-allowed}
+    .send-btn svg{width:16px;height:16px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+    /* PANEL DERECHO */
+    .right-panel{width:280px;flex-shrink:0;background:#0a0a16;border-left:1px solid #1a1a2e;overflow-y:auto;padding:16px}
+    .right-panel::-webkit-scrollbar{width:3px}
+    .right-panel::-webkit-scrollbar-thumb{background:#1e1e2e}
+    .rp-section{margin-bottom:20px}
+    .rp-title{font-size:10px;font-weight:600;color:#3a3a4e;text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px}
+    .rp-stat{background:#0e0e1e;border:1px solid #1a1a2e;border-radius:8px;padding:10px 12px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center}
+    .rp-stat .rl{font-size:11px;color:#6b6b78}
+    .rp-stat .rv{font-size:16px;font-weight:500;color:#fff}
+    .rp-stat .rsub{font-size:10px;color:#4a9eff}
+    .rp-chart{background:#0e0e1e;border:1px solid #1a1a2e;border-radius:8px;padding:12px;margin-bottom:6px}
+    .rp-chart .rp-chart-title{font-size:11px;color:#6b6b78;margin-bottom:10px}
+    .rp-chart-wrap{position:relative;height:100px}
+    .evento-mini{background:#0e0e1e;border:1px solid #1a1a2e;border-radius:8px;padding:10px 12px;margin-bottom:6px;display:flex;gap:10px;align-items:center}
+    .em-dias{font-size:18px;font-weight:600;color:#fff;min-width:28px;text-align:center}
+    .em-dias span{display:block;font-size:9px;color:#3a3a4e;font-weight:400}
+    .em-info .en{font-size:12px;color:#e8e6e0}
+    .em-info .et{font-size:10px;margin-top:2px}
+    .et.competencia{color:#4acf8f}
+    .et.examen{color:#f0c040}
+    .et.otro{color:#7eaaef}
+
+    @media(max-width:900px){
+      .right-panel{display:none}
+    }
     @media(max-width:600px){
-      nav,.chat-wrap,.sugerencias,.input-wrap{padding-left:16px;padding-right:16px}
-      .msg{max-width:90%}
+      .sidebar{display:none}
     }
   </style>
 </head>
 <body>
 
 <nav>
-  <h1>💬 Entrenador IA</h1>
-  <a href="/">← Dashboard</a>
+  <div class="nav-left">
+    <span class="nav-logo">Coach Aria</span>
+  </div>
+  <a href="/">Training Hub</a>
 </nav>
 
-<div class="chat-wrap" id="chat">
-  <div class="msg agent">Hola Felipe 👋 Tengo acceso a todo tu historial de entrenamiento, tus workouts de fuerza y tus eventos próximos.
+<div class="app">
 
-¿En qué te puedo ayudar hoy? Puedo recomendarte un entrenamiento, analizar tu semana, darte consejos de nutrición para tus sesiones, o hablar sobre tu cintilla iliotibial.</div>
-</div>
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <button class="new-chat-btn" onclick="nuevoChat()">New conversation</button>
+    </div>
+    <div class="sidebar-section">Recent</div>
+    <div class="chat-list" id="chat-list"></div>
+    <div class="sidebar-footer">
+      <a href="/">Training Hub</a>
+    </div>
+  </div>
 
-<div class="sugerencias">
-  <button class="sug" onclick="enviarSugerencia(this)">¿Cómo va mi semana de entrenamiento?</button>
-  <button class="sug" onclick="enviarSugerencia(this)">Recomiéndame el entreno de hoy</button>
-  <button class="sug" onclick="enviarSugerencia(this)">¿Cómo manejo la cintilla iliotibial?</button>
-  <button class="sug" onclick="enviarSugerencia(this)">Tips de nutrición para mis entrenamientos</button>
-  <button class="sug" onclick="enviarSugerencia(this)">¿Cuándo empiezo a nadar y a montar bici?</button>
-  <button class="sug" onclick="enviarSugerencia(this)">Arma un split de entrenamiento semanal</button>
-</div>
+  <!-- CHAT -->
+  <div class="chat-main">
+    <div class="chat-header">
+      <div class="coach-avatar">A</div>
+      <div class="coach-info">
+        <div class="name">Coach Aria</div>
+        <div class="status"><span class="status-dot"></span> Online · has access to your training data</div>
+      </div>
+    </div>
 
-<div class="input-wrap">
-  <textarea id="input" placeholder="Escríbele al agente..." onkeydown="handleKey(event)"></textarea>
-  <button id="send" onclick="enviar()">Enviar</button>
+    <div class="chat-messages" id="chat"></div>
+
+    <div class="suggestions" id="sugerencias">
+      <button class="sug" onclick="enviarSugerencia(this)">Analyze my training this week</button>
+      <button class="sug" onclick="enviarSugerencia(this)">Recommend today's workout</button>
+      <button class="sug" onclick="enviarSugerencia(this)">How is my IT band recovery?</button>
+      <button class="sug" onclick="enviarSugerencia(this)">Nutrition tips for my training</button>
+      <button class="sug" onclick="enviarSugerencia(this)">Build me a weekly split</button>
+      <button class="sug" onclick="enviarSugerencia(this)">When should I start swimming and cycling?</button>
+    </div>
+
+    <div class="input-area">
+      <div class="input-wrap">
+        <textarea id="input" placeholder="Ask Coach Aria..." onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+        <button class="send-btn" id="send" onclick="enviar()">
+          <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div class="right-panel">
+    <div class="rp-section">
+      <div class="rp-title">This week</div>
+      <div id="rp-stats"></div>
+    </div>
+    <div class="rp-section">
+      <div class="rp-title">Distance (km)</div>
+      <div class="rp-chart">
+        <div class="rp-chart-title">Last 8 weeks</div>
+        <div class="rp-chart-wrap"><canvas id="rpChartKm"></canvas></div>
+      </div>
+    </div>
+    <div class="rp-section">
+      <div class="rp-title">Heart Rate</div>
+      <div class="rp-chart">
+        <div class="rp-chart-title">Last 30 days</div>
+        <div class="rp-chart-wrap"><canvas id="rpChartHR"></canvas></div>
+      </div>
+    </div>
+    <div class="rp-section">
+      <div class="rp-title">Upcoming events</div>
+      <div id="rp-eventos"></div>
+    </div>
+  </div>
+
 </div>
 
 <script>
+// ── Storage de chats ─────────────────────────────────────────
+const STORAGE_KEY = 'aria_chats'
+
+function cargarChats(){
+  try{ return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [] }
+  catch{ return [] }
+}
+
+function guardarChats(chats){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(chats))
+}
+
+let chats = cargarChats()
+let chatActivo = null
 let historial = []
 
+function nuevoChat(){
+  const id = Date.now().toString()
+  const chat = { id, titulo:'New conversation', fecha: new Date().toLocaleDateString('en-US',{month:'short',day:'numeric'}), mensajes:[] }
+  chats.unshift(chat)
+  guardarChats(chats)
+  activarChat(id)
+  renderSidebar()
+}
+
+function activarChat(id){
+  chatActivo = id
+  const chat = chats.find(c=>c.id===id)
+  historial = chat ? chat.mensajes.map(m=>({role:m.role,content:m.content})) : []
+  renderChat(chat ? chat.mensajes : [])
+  renderSidebar()
+  // Ocultar sugerencias si ya hay mensajes
+  document.getElementById('sugerencias').style.display = historial.length ? 'none' : 'flex'
+}
+
+function renderSidebar(){
+  const list = document.getElementById('chat-list')
+  if(!chats.length){
+    list.innerHTML = '<div style="padding:12px;font-size:12px;color:#3a3a4e;text-align:center">No conversations yet</div>'
+    return
+  }
+  list.innerHTML = chats.map(c=>`
+    <div class="chat-item ${c.id===chatActivo?'active':''}" onclick="activarChat('${c.id}')">
+      <div class="ci-title">${c.titulo}</div>
+      <div class="ci-date">${c.fecha}</div>
+    </div>`).join('')
+}
+
+function renderChat(mensajes){
+  const el = document.getElementById('chat')
+  if(!mensajes.length){
+    el.innerHTML = `
+      <div class="msg-wrap">
+        <div class="msg-avatar aria">A</div>
+        <div class="msg-bubble aria">Hey Felipe! I'm Coach Aria. I have full access to your training history, strength workouts and upcoming events.\n\nWhat can I help you with today?</div>
+      </div>`
+    return
+  }
+  el.innerHTML = mensajes.map(m=>`
+    <div class="msg-wrap ${m.role==='user'?'user':''}">
+      <div class="msg-avatar ${m.role==='user'?'user':'aria'}">${m.role==='user'?'F':'A'}</div>
+      <div class="msg-bubble ${m.role==='user'?'user':'aria'}">${m.content}</div>
+    </div>`).join('')
+  el.scrollTop = el.scrollHeight
+}
+
+function autoResize(el){
+  el.style.height = '22px'
+  el.style.height = Math.min(el.scrollHeight, 120) + 'px'
+}
+
 function handleKey(e){
-  if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); enviar() }
+  if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); enviar() }
 }
 
 function enviarSugerencia(btn){
@@ -69,58 +270,158 @@ function enviarSugerencia(btn){
   enviar()
 }
 
-function addMsg(texto, tipo){
-  const chat = document.getElementById('chat')
+function addMsg(content, role){
+  const el = document.getElementById('chat')
   const div = document.createElement('div')
-  div.className = 'msg ' + tipo
-  div.textContent = texto
-  chat.appendChild(div)
-  chat.scrollTop = chat.scrollHeight
+  div.className = `msg-wrap ${role==='user'?'user':''}`
+  div.innerHTML = `
+    <div class="msg-avatar ${role==='user'?'user':'aria'}">${role==='user'?'F':'A'}</div>
+    <div class="msg-bubble ${role==='user'?'user':'aria'}">${content}</div>`
+  el.appendChild(div)
+  el.scrollTop = el.scrollHeight
   return div
 }
 
 async function enviar(){
+  if(!chatActivo) nuevoChat()
+
   const input = document.getElementById('input')
   const btn = document.getElementById('send')
   const texto = input.value.trim()
   if(!texto) return
 
   input.value = ''
+  input.style.height = '22px'
   btn.disabled = true
+  document.getElementById('sugerencias').style.display = 'none'
+
   addMsg(texto, 'user')
+  const typingDiv = addMsg('<span style="opacity:.5">Analyzing your training data...</span>', 'aria')
 
-  const typing = addMsg('Analizando tu historial...', 'agent typing')
-
-  try {
-    const res = await fetch('/api/chat', {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({
-        mensaje: texto,
-        historial: historial
-      })
+  try{
+    const res = await fetch('/api/chat',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ mensaje:texto, historial })
     })
-
     const data = await res.json()
-    typing.remove()
+    typingDiv.remove()
 
     if(data.error){
-      addMsg('Error: ' + data.error, 'agent')
+      addMsg('Error: '+data.error, 'aria')
     } else {
-      addMsg(data.respuesta, 'agent')
-      historial.push({role:'user', content:texto})
-      historial.push({role:'assistant', content:data.respuesta})
-      // Mantener solo los últimos 10 turnos para no gastar tokens
+      addMsg(data.respuesta, 'aria')
+      historial.push({role:'user',content:texto})
+      historial.push({role:'assistant',content:data.respuesta})
       if(historial.length > 20) historial = historial.slice(-20)
+
+      // Guardar en storage
+      const chat = chats.find(c=>c.id===chatActivo)
+      if(chat){
+        chat.mensajes = historial.map((m,i)=>({role:m.role,content:m.content}))
+        // Actualizar titulo con el primer mensaje
+        if(chat.titulo==='New conversation' && texto.length > 0){
+          chat.titulo = texto.slice(0,35)+(texto.length>35?'...':'')
+        }
+        guardarChats(chats)
+        renderSidebar()
+      }
     }
-  } catch(err) {
-    typing.remove()
-    addMsg('Error de conexión. ¿Está corriendo el servidor?', 'agent')
+  } catch(err){
+    typingDiv.remove()
+    addMsg('Connection error. Is the server running?', 'aria')
   }
 
   btn.disabled = false
   input.focus()
 }
+
+// ── Panel derecho ────────────────────────────────────────────
+function cargarPanel(){
+  // Stats semana
+  fetch('/api/stats?dias=7').then(r=>r.json()).then(d=>{
+    document.getElementById('rp-stats').innerHTML = `
+      <div class="rp-stat"><span class="rl">Activities</span><div><div class="rv">${d.total_actividades}</div></div></div>
+      <div class="rp-stat"><span class="rl">Distance</span><div><div class="rv">${d.distancia_total}<span style="font-size:11px;color:#6b6b78"> km</span></div><div class="rsub">${d.tiempo_total_horas}h training</div></div></div>
+      <div class="rp-stat"><span class="rl">Avg HR</span><div><div class="rv">${d.fc_media||'-'}<span style="font-size:11px;color:#6b6b78"> bpm</span></div></div></div>
+    `
+  })
+
+  // Grafica km
+  fetch('/api/distancia_semanal?tipo=all&semanas=8').then(r=>r.json()).then(data=>{
+    new Chart(document.getElementById('rpChartKm'),{
+      type:'line',
+      data:{
+        labels:data.map(d=>d.semana),
+        datasets:[{
+          data:data.map(d=>d.distancia),
+          borderColor:'#4a9eff',
+          backgroundColor:'rgba(74,158,255,0.08)',
+          tension:0.4, fill:true,
+          pointRadius:3, pointBackgroundColor:'#4a9eff',
+          pointBorderColor:'#080810', pointBorderWidth:2
+        }]
+      },
+      options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false}},
+        elements:{point:{radius:3}},
+        scales:{
+          x:{ticks:{color:'#3a3a4e',font:{size:9},maxTicksLimit:4},grid:{color:'#0e0e1e'}},
+          y:{ticks:{color:'#3a3a4e',font:{size:9}},grid:{color:'#0e0e1e'}}
+        }}
+    })
+  })
+
+  // Grafica HR
+  fetch('/api/fc_historico?tipo=all&dias=30').then(r=>r.json()).then(data=>{
+    new Chart(document.getElementById('rpChartHR'),{
+      type:'line',
+      data:{
+        labels:data.map(d=>d.fecha),
+        datasets:[{
+          data:data.map(d=>d.fc_media),
+          borderColor:'#e07b4f',
+          backgroundColor:'rgba(224,123,79,0.08)',
+          tension:0.4, fill:true,
+          pointRadius:2, pointBackgroundColor:'#e07b4f',
+          pointBorderColor:'#080810', pointBorderWidth:2
+        }]
+      },
+      options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false}},
+        scales:{
+          x:{ticks:{color:'#3a3a4e',font:{size:9},maxTicksLimit:4},grid:{color:'#0e0e1e'}},
+          y:{ticks:{color:'#3a3a4e',font:{size:9}},grid:{color:'#0e0e1e'}}
+        }}
+    })
+  })
+
+  // Eventos
+  fetch('/api/eventos').then(r=>r.json()).then(data=>{
+    const el = document.getElementById('rp-eventos')
+    if(!data.length){
+      el.innerHTML='<div style="font-size:12px;color:#3a3a4e;padding:8px 0">No upcoming events</div>'
+      return
+    }
+    el.innerHTML = data.slice(0,4).map(e=>`
+      <div class="evento-mini">
+        <div class="em-dias">${e.dias_restantes}<span>days</span></div>
+        <div class="em-info">
+          <div class="en">${e.nombre}</div>
+          <div class="et ${e.categoria}">${e.categoria}</div>
+        </div>
+      </div>`).join('')
+  })
+}
+
+// ── Init ─────────────────────────────────────────────────────
+renderSidebar()
+if(chats.length){
+  activarChat(chats[0].id)
+} else {
+  nuevoChat()
+}
+cargarPanel()
 </script>
 </body>
 </html>
