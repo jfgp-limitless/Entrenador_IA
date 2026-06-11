@@ -217,7 +217,7 @@ def get_eventos_proximos():
         conn.close()
         return []
     rows = conn.execute("""
-        SELECT nombre, tipo, fecha, hora, descripcion,
+        SELECT nombre, categoria, fecha, hora, descripcion,
                CAST(julianday(fecha) - julianday('now') AS INTEGER) as dias_restantes
         FROM eventos
         WHERE fecha >= date('now')

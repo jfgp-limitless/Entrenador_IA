@@ -447,7 +447,7 @@ function cargarEventos(){
       <div class="evento">
         <div class="evento-dias">${e.dias_restantes}<span>dias</span></div>
         <div class="evento-info">
-          <div class="nombre">${e.nombre}<span class="badge ${e.tipo}">${e.tipo}</span></div>
+          <div class="nombre">${e.nombre}<span class="badge ${e.categoria}">${e.categoria}</span></div>
           <div class="sub">${e.fecha}${e.descripcion?' · '+e.descripcion:''}</div>
         </div>
       </div>`).join('')
