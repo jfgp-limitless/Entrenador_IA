@@ -135,6 +135,27 @@
       <div class="chart-wrap"><canvas id="chartVolumen"></canvas></div>
     </div>
   </div>
+ <div id="fuerza-progresion" style="padding:32px 32px 16px">
+  <p style="font-size:12px;font-weight:500;color:#6b6b78;text-transform:uppercase;letter-spacing:.06em;margin-bottom:16px">Max Weight by Exercise</p>
+
+  <div id="maximos-todos" style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:28px"></div>
+
+  <p style="font-size:12px;font-weight:500;color:#6b6b78;text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px">Progression</p>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px">
+    <div class="chart-card">
+      <div class="chart-title" id="title-prog-0">Bench Press</div>
+      <div class="chart-wrap"><canvas id="chartProg0"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title" id="title-prog-1">Chest Fly</div>
+      <div class="chart-wrap"><canvas id="chartProg1"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title" id="title-prog-2">Squat (Smith)</div>
+      <div class="chart-wrap"><canvas id="chartProg2"></canvas></div>
+    </div>
+  </div>
+</div>
 </div>
 
 <p class="section-title">Proximos eventos</p>
@@ -168,6 +189,149 @@ const COLORES = {
   Run:'#7ecb8f', Ride:'#7eaaef', Swim:'#7ed4ef', WeightTraining:'#7eaaef'
 }
 
+let chartsProg = [null, null, null]
+
+function cargarProgresion(){
+  // Maximos: siempre todos los datos (sin filtro de periodo)
+  fetch(`/api/progresion_ejercicios?dias=3650`).then(r=>r.json()).then(dataAll=>{
+
+    const EJERCICIOS = {
+      chest: [
+        { label:'Bench Press',    keys:['bench press','press de banca','chest press','press banca'] },
+        { label:'Chest Fly',      keys:['chest fly','fly','pec deck','aperturas'] },
+      ],
+      back: [
+        { label:'Lat Pulldown',   keys:['lat pulldown','jalon','pull down'] },
+        { label:'Row',            keys:['row','remo','seated row','cable row'] },
+      ],
+      legs: [
+        { label:'Squat (Smith)',  keys:['squat','sentadilla'] },
+        { label:'Deadlift',       keys:['deadlift','peso muerto','rdl','romanian'] },
+      ]
+    }
+
+    function buscarMax(data, keys){
+      let maxPeso = null
+      for(const nombre of Object.keys(data)){
+        const nombreLow = nombre.toLowerCase()
+        if(keys.some(k => nombreLow.includes(k))){
+          const registros = data[nombre]
+          const m = Math.max(...registros.map(r=>r.peso_max))
+          if(maxPeso === null || m > maxPeso) maxPeso = m
+        }
+      }
+      return maxPeso
+    }
+
+    function renderMaximos(containerId, grupos){
+    const el = document.getElementById(containerId)
+    if(!el) return
+    const todos = Object.entries(grupos)
+    el.innerHTML = todos.map(([grupo, ejercicios]) =>
+        ejercicios.map(ej => {
+        const pesoMax = buscarMax(dataAll, ej.keys)
+        return `
+            <div class="stat">
+            <div class="lbl" style="color:${grupo==='chest'?'#e07b4f':grupo==='back'?'#7eaaef':'#7ecb8f'}">${grupo.toUpperCase()}</div>
+            <div style="font-size:12px;color:#b0aead;margin-bottom:4px">${ej.label}</div>
+            <div class="val">${pesoMax !== null ? pesoMax : '-'}<span style="font-size:13px;color:#6b6b78"> kg</span></div>
+            </div>`
+        }).join('')
+    ).join('')
+    }
+
+    renderMaximos('maximos-todos', EJERCICIOS)
+
+  })
+
+  // Graficas: respetan el periodo seleccionado
+  fetch(`/api/progresion_ejercicios?dias=${periodoActivo}`).then(r=>r.json()).then(data=>{
+
+    const GRAFICAS = [
+      { label:'Bench Press',   keys:['bench press','press de banca','chest press','press banca'] },
+      { label:'Chest Fly',     keys:['chest fly','fly','pec deck','aperturas'] },
+      { label:'Squat (Smith)', keys:['squat','sentadilla'] },
+    ]
+
+    const COLORES = ['#e07b4f','#7ecb8f','#7eaaef']
+
+    GRAFICAS.forEach((ej, i)=>{
+      // Buscar registros que coincidan con las keys
+      let registros = []
+      for(const nombre of Object.keys(data)){
+        const nombreLow = nombre.toLowerCase()
+        if(ej.keys.some(k => nombreLow.includes(k))){
+          // Mergear registros por fecha tomando el maximo
+          for(const r of data[nombre]){
+            const existing = registros.find(x=>x.fecha===r.fecha)
+            if(existing){
+              if(r.peso_max > existing.peso_max) existing.peso_max = r.peso_max
+            } else {
+              registros.push({...r})
+            }
+          }
+        }
+      }
+      registros.sort((a,b)=>a.fecha.localeCompare(b.fecha))
+
+      const titleEl = document.getElementById(`title-prog-${i}`)
+      if(titleEl) titleEl.textContent = `${ej.label} — max weight (kg)`
+
+      if(chartsProg[i]) chartsProg[i].destroy()
+      const canvas = document.getElementById(`chartProg${i}`)
+      if(!canvas) return
+
+      if(!registros.length){
+        // Sin datos — mostrar mensaje
+        const ctx = canvas.getContext('2d')
+        ctx.clearRect(0,0,canvas.width,canvas.height)
+        ctx.fillStyle = '#6b6b78'
+        ctx.font = '13px system-ui'
+        ctx.textAlign = 'center'
+        ctx.fillText('No data for this period', canvas.width/2, canvas.height/2)
+        return
+      }
+
+      const color = COLORES[i]
+      const colorRgba = color === '#e07b4f' ? 'rgba(224,123,79,0.12)'
+                      : color === '#7ecb8f' ? 'rgba(126,203,143,0.12)'
+                      : 'rgba(126,170,239,0.12)'
+
+      chartsProg[i] = new Chart(canvas,{
+        type:'line',
+        data:{
+          labels: registros.map(r=>r.fecha),
+          datasets:[{
+            data: registros.map(r=>r.peso_max),
+            borderColor: color,
+            backgroundColor: colorRgba,
+            tension:0.3,
+            fill:true,
+            pointRadius:4,
+            pointBackgroundColor: color,
+            pointBorderColor:'#0f0f13',
+            pointBorderWidth:2,
+            pointHoverRadius:6
+          }]
+        },
+        options:{
+          responsive:true, maintainAspectRatio:false,
+          plugins:{legend:{display:false},
+            tooltip:{callbacks:{label:ctx=>`${ctx.parsed.y} kg`}}},
+          scales:{
+            x:{ticks:{color:'#6b6b78',font:{size:10},maxTicksLimit:6},grid:{color:'#1e1e26'}},
+            y:{
+              ticks:{color:'#6b6b78',font:{size:10},callback:v=>v+' kg'},
+              grid:{color:'#1e1e26'},
+              title:{display:true,text:'kg',color:'#6b6b78',font:{size:10}}
+            }
+          }
+        }
+      })
+    })
+  })
+}
+
 function formatTiempo(seg){
   if(!seg) return '-'
   const h = Math.floor(seg/3600), m = Math.floor((seg%3600)/60)
@@ -192,7 +356,10 @@ function setFiltro(tipo, btn){
   document.getElementById('seccion-cardio').classList.toggle('hidden', esFuerza)
   document.getElementById('seccion-fuerza').classList.toggle('hidden', !esFuerza && tipo !== 'all')
 
-  // En "todo" mostramos ambas secciones
+  // Ocultar progresion en "all", mostrar solo en fuerza
+  const progDiv = document.getElementById('fuerza-progresion')
+  if(progDiv) progDiv.classList.toggle('hidden', tipo !== 'WeightTraining')
+
   if(tipo === 'all'){
     document.getElementById('seccion-cardio').classList.remove('hidden')
     document.getElementById('seccion-fuerza').classList.remove('hidden')
@@ -218,6 +385,9 @@ function recargarTodo(){
   }
   if(filtroActivo === 'WeightTraining' || filtroActivo === 'all'){
     cargarFuerza()
+  }
+  if(filtroActivo === 'WeightTraining'){
+    cargarProgresion()
   }
 }
 
@@ -453,6 +623,9 @@ function cargarEventos(){
       </div>`).join('')
   })
 }
+
+const progDiv = document.getElementById('fuerza-progresion')
+if(progDiv) progDiv.classList.add('hidden')
 
 recargarTodo()
 cargarEventos()

@@ -334,10 +334,94 @@ def get_distancia_diaria(tipo=None, dias=30):
     conn.close()
     return [dict(r) for r in rows]
 
+#funcion progreso fuerza
+def get_progresion_ejercicios(dias=365):
+    conn = get_connection()
+    tabla = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='workouts_fuerza'").fetchone()
+    if not tabla:
+        conn.close()
+        return {}
+
+    if dias >= 3650:
+        rows = conn.execute(
+            "SELECT fecha, ejercicios_json FROM workouts_fuerza ORDER BY fecha ASC"
+        ).fetchall()
+    else:
+        rows = conn.execute(f"""
+            SELECT fecha, ejercicios_json FROM workouts_fuerza
+            WHERE fecha >= date('now', '-{dias} days')
+            ORDER BY fecha ASC
+        """).fetchall()
+
+
+    # Ejercicios prioritarios en orden
+    prioritarios = [
+        "bench press", "press de banca", "chest press",
+        "squat", "sentadilla",
+        "deadlift", "peso muerto",
+        "overhead press", "shoulder press",
+        "row", "remo",
+        "pull up", "dominadas"
+    ]
+
+    # Agrupar por ejercicio normalizado
+    ejercicios_data = {}
+    alias = {
+        "bench press": "Bench Press", "press de banca": "Bench Press", "chest press": "Bench Press",
+        "squat": "Squat", "sentadilla": "Squat",
+        "deadlift": "Deadlift", "peso muerto": "Deadlift",
+        "overhead press": "Overhead Press", "shoulder press": "Overhead Press",
+        "row": "Row", "remo": "Row",
+        "pull up": "Pull Up", "dominadas": "Pull Up"
+    }
+
+    for r in rows:
+        ejercicios = json.loads(r["ejercicios_json"])
+        for e in ejercicios:
+            nombre = e["nombre"].lower()
+            nombre_norm = None
+            for key, norm in alias.items():
+                if key in nombre:
+                    nombre_norm = norm
+                    break
+            if not nombre_norm:
+                nombre_norm = e["nombre"]
+
+            peso_max = max((s["peso_kg"] for s in e["series"]), default=0)
+            if peso_max == 0:
+                continue
+
+            if nombre_norm not in ejercicios_data:
+                ejercicios_data[nombre_norm] = []
+
+            # Evitar duplicar misma fecha
+            fechas_existentes = [x["fecha"] for x in ejercicios_data[nombre_norm]]
+            if r["fecha"] not in fechas_existentes:
+                ejercicios_data[nombre_norm].append({
+                    "fecha": r["fecha"],
+                    "peso_max": peso_max
+                })
+            else:
+                # Actualizar si hay mayor peso ese dia
+                for item in ejercicios_data[nombre_norm]:
+                    if item["fecha"] == r["fecha"] and peso_max > item["peso_max"]:
+                        item["peso_max"] = peso_max
+
+    # Ordenar cada ejercicio por fecha
+    for key in ejercicios_data:
+        ejercicios_data[key].sort(key=lambda x: x["fecha"])
+
+    return ejercicios_data
+
 # ── Rutas Flask ───────────────────────────────────────────────
 @app.route("/")
 def index():
     return render_template("index.html")
+
+@app.route("/api/progresion_ejercicios")
+def api_progresion_ejercicios():
+    dias = int(request.args.get("dias", 365))
+    return jsonify(get_progresion_ejercicios(dias))
 
 @app.route("/agente")
 def agente():
