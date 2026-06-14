@@ -399,25 +399,43 @@ function renderFuerza(d){
     </div>
   `
 
-  const radarKeys=['legs','back','chest','shoulders','arms','core']
-  new Chart(document.getElementById('chartRadar'),{
-    type:'radar',
-    data:{
-      labels:radarKeys.map(k=>muscLabels[k]||k),
-      datasets:[{
-        label:'Sets', data:radarKeys.map(k=>w.musculos[k]||0),
-        borderColor:'#7eaaef', backgroundColor:'rgba(126,170,239,0.15)',
-        pointBackgroundColor:'#7eaaef', borderWidth:2
-      }]
-    },
-    options:{responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{display:false}},
-      scales:{r:{
-        ticks:{color:'#6b6b78',font:{size:9},backdropColor:'transparent'},
-        grid:{color:'#2a2a36'},
-        pointLabels:{color:'#b0aead',font:{size:11}}
-      }}}
-  })
+const UPPER_KEYS   = ['chest','back','biceps','shoulders','triceps']
+const UPPER_LABELS = ['chest','back','biceps','shoulders','triceps']
+const LOWER_KEYS   = ['quads','hamstrings','glutes','calves','core']
+const LOWER_LABELS = ['Quads','Hamstrings','Glutes','Calves','Core']
+
+const musculos = w.musculos
+const upperSets = UPPER_KEYS.reduce((a,k)=>a+(musculos[k]||0),0)
+const lowerSets = LOWER_KEYS.reduce((a,k)=>a+(musculos[k]||0),0)
+const isLower = lowerSets > upperSets
+
+const useKeys   = isLower ? LOWER_KEYS   : UPPER_KEYS
+const useLabels = isLower ? LOWER_LABELS : UPPER_LABELS
+const color     = isLower ? '#7ecb8f'    : '#7eaaef'
+const colorBg   = isLower ? 'rgba(126,203,143,0.15)' : 'rgba(126,170,239,0.15)'
+
+new Chart(document.getElementById('chartRadar'),{
+  type:'radar',
+  data:{
+    labels: useLabels,
+    datasets:[{
+      label:'Sets',
+      data: useKeys.map(k=>musculos[k]||0),
+      borderColor: color,
+      backgroundColor: colorBg,
+      pointBackgroundColor: color,
+      borderWidth:2, pointRadius:3
+    }]
+  },
+  options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false}},
+    scales:{r:{
+      min:0,
+      ticks:{color:'#6b6b78',font:{size:9},backdropColor:'transparent'},
+      grid:{color:'#2a2a36'},
+      pointLabels:{color:'#b0aead',font:{size:11}}
+    }}}
+})
 
   const volPorMusculo={}
   w.ejercicios.forEach(e=>{

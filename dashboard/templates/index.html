@@ -579,8 +579,8 @@ function cargarFuerza(){
   })
 
   fetch(`/api/radar_upper?dias=${periodoActivo}`).then(r=>r.json()).then(d=>{
-    const labels = ['Chest','Back','Biceps','Triceps','Shoulders']
-    const keys   = ['chest','back','biceps','triceps','shoulders']
+    const labels = ['chest','back','biceps','shoulders','triceps']
+    const keys   = ['chest','back','biceps','shoulders','triceps']
     if(chartRadarUpper){ chartRadarUpper.destroy(); chartRadarUpper=null }
     chartRadarUpper = new Chart(document.getElementById('chartRadarUpper'),{
       type:'radar',

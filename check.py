@@ -1,16 +1,13 @@
-from database import get_connection
-import json
+# check.py
+import sys
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'dashboard'))
+sys.path.insert(0, os.path.dirname(__file__))
 
-conn = get_connection()
-rows = conn.execute("SELECT ejercicios_json FROM workouts_fuerza").fetchall()
+from app import construir_contexto
 
-ejercicios = {}
-for r in rows:
-    for e in json.loads(r['ejercicios_json']):
-        nombre = e['nombre']
-        musculo = e['musculo']
-        if nombre not in ejercicios:
-            ejercicios[nombre] = musculo
-
-for nombre, musculo in sorted(ejercicios.items()):
-    print(f"  [{musculo:12}] {nombre}")
+ctx = construir_contexto()
+print(ctx)
+print(f"\n{'='*50}")
+print(f"Total caracteres: {len(ctx)}")
+print(f"Tokens estimados: ~{len(ctx)//4}")
