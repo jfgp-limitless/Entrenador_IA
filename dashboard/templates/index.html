@@ -125,16 +125,23 @@
       <div class="fm"><div class="fv" id="fw-sets">-</div><div class="fl">Sets totales</div></div>
     </div>
   </div>
+ 
   <div class="grid-charts">
     <div class="chart-card">
-      <h3>Distribucion muscular (sets por grupo)</h3>
-      <div class="chart-wrap"><canvas id="chartRadar"></canvas></div>
+      <h3>Upper Body Distribution (sets)</h3>
+      <div class="chart-wrap"><canvas id="chartRadarUpper"></canvas></div>
     </div>
     <div class="chart-card">
-      <h3>Minutos semanales de fuerza</h3>
+      <h3>Lower Body Distribution (sets)</h3>
+      <div class="chart-wrap"><canvas id="chartRadarLower"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3>Weekly strength minutes</h3>
       <div class="chart-wrap"><canvas id="chartVolumen"></canvas></div>
     </div>
   </div>
+
+
  <div id="fuerza-progresion" style="padding:32px 32px 16px">
   <p style="font-size:12px;font-weight:500;color:#6b6b78;text-transform:uppercase;letter-spacing:.06em;margin-bottom:16px">Max Weight by Exercise</p>
 
@@ -181,9 +188,10 @@
 </div>
 
 <script>
+
 let filtroActivo = 'all'
 let periodoActivo = 7
-let chartKm, chartHoras, chartFC, chartRadar, chartVolumen
+let chartKm, chartHoras, chartFC, chartRadarUpper, chartRadarLower, chartVolumen
 
 const COLORES = {
   Run:'#7ecb8f', Ride:'#7eaaef', Swim:'#7ed4ef', WeightTraining:'#7eaaef'
@@ -559,27 +567,44 @@ function cargarFuerza(){
     document.getElementById('fw-sets').textContent = d.sets||0
   })
 
-  fetch(`/api/radar_musculos?dias=${periodoActivo}`).then(r=>r.json()).then(d=>{
-    const labels = ['legs','back','chest','shoulders','arms','core']
-    const labelMap = {legs:'Piernas',back:'Espalda',chest:'Pecho',shoulders:'Hombros',arms:'Brazos',core:'Core'}
-    if(chartRadar) chartRadar.destroy()
-    chartRadar = new Chart(document.getElementById('chartRadar'),{
+  const radarOpts = (color) => ({
+    responsive:true, maintainAspectRatio:false,
+    plugins:{legend:{display:false}},
+    scales:{r:{
+      min:0,
+      ticks:{color:'#6b6b78',font:{size:9},backdropColor:'transparent'},
+      grid:{color:'#2a2a36'},
+      pointLabels:{color:'#b0aead',font:{size:11}}
+    }}
+  })
+
+  fetch(`/api/radar_upper?dias=${periodoActivo}`).then(r=>r.json()).then(d=>{
+    const labels = ['Chest','Back','Biceps','Triceps','Shoulders']
+    const keys   = ['chest','back','biceps','triceps','shoulders']
+    if(chartRadarUpper){ chartRadarUpper.destroy(); chartRadarUpper=null }
+    chartRadarUpper = new Chart(document.getElementById('chartRadarUpper'),{
       type:'radar',
-      data:{
-        labels:labels.map(l=>labelMap[l]),
-        datasets:[{
-          label:'Sets',data:labels.map(l=>d[l]||0),
-          borderColor:'#7eaaef',backgroundColor:'rgba(126,170,239,0.15)',
-          pointBackgroundColor:'#7eaaef',borderWidth:2
-        }]
-      },
-      options:{responsive:true,maintainAspectRatio:false,
-        plugins:{legend:{display:false}},
-        scales:{r:{
-          ticks:{color:'#6b6b78',font:{size:9},backdropColor:'transparent'},
-          grid:{color:'#2a2a36'},
-          pointLabels:{color:'#b0aead',font:{size:11}}
-        }}}
+      data:{labels,datasets:[{
+        label:'Sets', data:keys.map(k=>d[k]||0),
+        borderColor:'#7eaaef', backgroundColor:'rgba(126,170,239,0.15)',
+        pointBackgroundColor:'#7eaaef', borderWidth:2, pointRadius:3
+      }]},
+      options: radarOpts('#7eaaef')
+    })
+  })
+
+  fetch(`/api/radar_lower?dias=${periodoActivo}`).then(r=>r.json()).then(d=>{
+    const labels = ['Quads','Hamstrings','Glutes','Calves','Core']
+    const keys   = ['quads','hamstrings','glutes','calves','core']
+    if(chartRadarLower){ chartRadarLower.destroy(); chartRadarLower=null }
+    chartRadarLower = new Chart(document.getElementById('chartRadarLower'),{
+      type:'radar',
+      data:{labels,datasets:[{
+        label:'Sets', data:keys.map(k=>d[k]||0),
+        borderColor:'#7ecb8f', backgroundColor:'rgba(126,203,143,0.15)',
+        pointBackgroundColor:'#7ecb8f', borderWidth:2, pointRadius:3
+      }]},
+      options: radarOpts('#7ecb8f')
     })
   })
 
@@ -592,10 +617,7 @@ function cargarFuerza(){
     if(chartVolumen) chartVolumen.destroy()
     chartVolumen = new Chart(document.getElementById('chartVolumen'),{
       type:'bar',
-      data:{
-        labels:semanas,
-        datasets:[{label:'min',data:vals,backgroundColor:'#7eaaef99',borderRadius:5}]
-      },
+      data:{labels:semanas,datasets:[{label:'min',data:vals,backgroundColor:'#7eaaef99',borderRadius:5}]},
       options:{responsive:true,maintainAspectRatio:false,
         plugins:{legend:{display:false}},
         scales:{
@@ -627,8 +649,12 @@ function cargarEventos(){
 const progDiv = document.getElementById('fuerza-progresion')
 if(progDiv) progDiv.classList.add('hidden')
 
+// Fuerza visible en "all" desde el inicio
+document.getElementById('seccion-fuerza').classList.remove('hidden')
+
 recargarTodo()
 cargarEventos()
+
 </script>
 </body>
 </html>

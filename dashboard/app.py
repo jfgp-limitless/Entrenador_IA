@@ -611,6 +611,46 @@ def api_radar_musculos():
     dias = int(request.args.get("dias", 30))
     return jsonify(get_radar_musculos(dias=dias))
 
+@app.route("/api/radar_upper")
+def api_radar_upper():
+    dias = int(request.args.get("dias", 3650))
+    conn = get_connection()
+    tabla = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='workouts_fuerza'").fetchone()
+    if not tabla:
+        conn.close()
+        return jsonify({})
+    rows = conn.execute(f"""
+        SELECT musculos_json FROM workouts_fuerza
+        WHERE fecha >= date('now', '-{dias} days')
+    """).fetchall()
+    conn.close()
+    grupos = {"chest":0,"back":0,"biceps":0,"triceps":0,"shoulders":0}
+    for r in rows:
+        for m, sets in json.loads(r["musculos_json"]).items():
+            if m in grupos:
+                grupos[m] += sets
+    return jsonify(grupos)
+
+@app.route("/api/radar_lower")
+def api_radar_lower():
+    dias = int(request.args.get("dias", 3650))
+    conn = get_connection()
+    tabla = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='workouts_fuerza'").fetchone()
+    if not tabla:
+        conn.close()
+        return jsonify({})
+    rows = conn.execute(f"""
+        SELECT musculos_json FROM workouts_fuerza
+        WHERE fecha >= date('now', '-{dias} days')
+    """).fetchall()
+    conn.close()
+    grupos = {"quads":0,"hamstrings":0,"glutes":0,"calves":0,"core":0}
+    for r in rows:
+        for m, sets in json.loads(r["musculos_json"]).items():
+            if m in grupos:
+                grupos[m] += sets
+    return jsonify(grupos)
+
 @app.route("/api/metricas_fuerza")
 def api_metricas_fuerza():
     dias = int(request.args.get("dias", 30))
