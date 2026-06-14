@@ -3,38 +3,126 @@ from database import get_connection
 
 # Mapeo de músculos por ejercicio
 MUSCLE_MAP = {
-    # Piernas
-    "squat": "legs", "deadlift": "legs", "bulgarian split squat": "legs",
-    "leg press": "legs", "leg extension": "legs", "lying leg curl": "legs",
-    "leg curl": "legs", "hip adduction": "legs", "hip abduction": "legs",
-    "seated calf raise": "legs", "calf raise": "legs", "lunge": "legs",
-    "romanian deadlift": "legs", "rdl": "legs", "hack squat": "legs",
-    # Espalda
-    "pull up": "back", "pullup": "back", "chin up": "back", "lat pulldown": "back",
-    "row": "back", "seated row": "back", "cable row": "back", "t-bar row": "back",
-    "face pull": "back", "pull-up": "back",
-    # Pecho
-    "bench press": "chest", "chest press": "chest", "chest fly": "chest",
-    "push up": "chest", "dip": "chest", "incline": "chest", "decline": "chest",
+    # CHEST
+    "bench press": "chest",
+    "chest press": "chest",
+    "chest fly": "chest",
+    "incline bench": "chest",
+    "decline bench": "chest",
     "pec deck": "chest",
-    # Hombros
-    "shoulder press": "shoulders", "overhead press": "shoulders", "ohp": "shoulders",
-    "lateral raise": "shoulders", "front raise": "shoulders", "arnold": "shoulders",
-    "military press": "shoulders",
-    # Brazos
-    "bicep curl": "arms", "curl": "arms", "tricep": "arms", "skull crusher": "arms",
-    "hammer curl": "arms", "preacher curl": "arms", "cable curl": "arms",
-    "pushdown": "arms", "dip": "arms",
-    # Core
-    "plank": "core", "crunch": "core", "ab": "core", "sit up": "core",
-    "russian twist": "core", "leg raise": "core", "cable crunch": "core",
+    "push up": "chest",
+    "dip": "chest",
+
+    # BACK
+    "lat pulldown": "back",
+    "seated cable row": "back",
+    "t bar row": "back",
+    "cable row": "back",
+    "bent over row": "back",
+    "pull up": "back",
+    "chin up": "back",
+    "rope straight arm": "back",
+    "straight arm pulldown": "back",
+    "shrug": "back",
+    "face pull": "shoulders",
+
+    # SHOULDERS
+    "shoulder press": "shoulders",
+    "overhead press": "shoulders",
+    "lateral raise": "shoulders",
+    "front raise": "shoulders",
+    "arnold": "shoulders",
+    "rear delt": "shoulders",
+    "reverse fly": "shoulders",
+
+    # BICEPS
+    "bicep curl": "biceps",
+    "hammer curl": "biceps",
+    "preacher curl": "biceps",
+    "incline curl": "biceps",
+    "seated incline curl": "biceps",
+    "cable curl": "biceps",
+    "barbell curl": "biceps",
+
+    # TRICEPS
+    "tricep": "triceps",
+    "triceps": "triceps",
+    "skull crusher": "triceps",
+    "pushdown": "triceps",
+    "overhead tricep": "triceps",
+    "close grip bench": "triceps",
+
+    # QUADS
+    "squat": "quads",
+    "leg press": "quads",
+    "leg extension": "quads",
+    "bulgarian split squat": "quads",
+    "split squat": "quads",
+    "lunge": "quads",
+    "hack squat": "quads",
+    "step up": "quads",
+
+    # HAMSTRINGS
+    "deadlift": "hamstrings",
+    "romanian deadlift": "hamstrings",
+    "rdl": "hamstrings",
+    "leg curl": "hamstrings",
+    "lying leg curl": "hamstrings",
+    "seated leg curl": "hamstrings",
+    "nordic": "hamstrings",
+    "good morning": "hamstrings",
+
+    # GLUTES
+    "hip thrust": "glutes",
+    "hip abduction": "glutes",
+    "hip adduction": "glutes",
+    "glute bridge": "glutes",
+    "cable kickback": "glutes",
+    "donkey kick": "glutes",
+
+    # CALVES
+    "calf raise": "calves",
+    "seated calf": "calves",
+    "standing calf": "calves",
+
+    # CORE
+    "plank": "core",
+    "crunch": "core",
+    "sit up": "core",
+    "ab ": "core",
+    "russian twist": "core",
+    "leg raise": "core",
+    "cable crunch": "core",
+    "hanging": "core",
+}
+
+# Grupos para los radares
+UPPER_GROUPS = ["chest", "back", "biceps", "triceps", "shoulders"]
+LOWER_GROUPS = ["quads", "hamstrings", "glutes", "calves", "core"]
+
+UPPER_LABELS = {
+    "chest": "Chest",
+    "back": "Back",
+    "biceps": "Biceps",
+    "triceps": "Triceps",
+    "shoulders": "Shoulders"
+}
+
+LOWER_LABELS = {
+    "quads": "Quads",
+    "hamstrings": "Hamstrings",
+    "glutes": "Glutes",
+    "calves": "Calves",
+    "core": "Core"
 }
 
 def detectar_musculo(nombre_ejercicio):
     nombre = nombre_ejercicio.lower()
-    for keyword, muscle in MUSCLE_MAP.items():
-        if keyword in nombre:
-            return muscle
+    # Buscar match más específico primero (más largo)
+    matches = [(k, v) for k, v in MUSCLE_MAP.items() if k in nombre]
+    if matches:
+        # Tomar el match más largo (más específico)
+        return max(matches, key=lambda x: len(x[0]))[1]
     return "other"
 
 def lbs_a_kg(valor):

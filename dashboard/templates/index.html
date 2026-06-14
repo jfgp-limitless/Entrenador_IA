@@ -196,18 +196,18 @@ function cargarProgresion(){
   fetch(`/api/progresion_ejercicios?dias=3650`).then(r=>r.json()).then(dataAll=>{
 
     const EJERCICIOS = {
-      chest: [
-        { label:'Bench Press',    keys:['bench press','press de banca','chest press','press banca'] },
-        { label:'Chest Fly',      keys:['chest fly','fly','pec deck','aperturas'] },
-      ],
-      back: [
-        { label:'Lat Pulldown',   keys:['lat pulldown','jalon','pull down'] },
-        { label:'Row',            keys:['row','remo','seated row','cable row'] },
-      ],
-      legs: [
-        { label:'Squat (Smith)',  keys:['squat','sentadilla'] },
-        { label:'Deadlift',       keys:['deadlift','peso muerto','rdl','romanian'] },
-      ]
+    chest: [
+        { label:'Bench Press',    keys:['bench press'] },
+        { label:'Chest Fly',      keys:['chest fly'] },
+    ],
+    back: [
+        { label:'Lat Pulldown',   keys:['lat pulldown'] },
+        { label:'Bicep Curl',     keys:['bicep curl'] },
+    ],
+    legs: [
+        { label:'Squat (Smith)',  keys:['squat'] },
+        { label:'Hip Thrust',     keys:['hip thrust'] },
+    ]
     }
 
     function buscarMax(data, keys){
@@ -248,9 +248,9 @@ function cargarProgresion(){
   fetch(`/api/progresion_ejercicios?dias=${periodoActivo}`).then(r=>r.json()).then(data=>{
 
     const GRAFICAS = [
-      { label:'Bench Press',   keys:['bench press','press de banca','chest press','press banca'] },
-      { label:'Chest Fly',     keys:['chest fly','fly','pec deck','aperturas'] },
-      { label:'Squat (Smith)', keys:['squat','sentadilla'] },
+    { label:'Bench Press',   keys:['bench press'] },
+    { label:'Chest Fly',     keys:['chest fly'] },
+    { label:'Squat (Smith)', keys:['squat'] },
     ]
 
     const COLORES = ['#e07b4f','#7ecb8f','#7eaaef']

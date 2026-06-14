@@ -230,88 +230,233 @@ def get_eventos_proximos():
 # ── Contexto para Claude ─────────────────────────────────────
 def construir_contexto():
     conn = get_connection()
+    from datetime import date
 
-    # Últimas 4 semanas detallado
-    actividades = conn.execute("""
-        SELECT tipo, fecha, distancia_km, tiempo_segundos, fc_media, nombre
-        FROM actividades
-        WHERE fecha >= date('now', '-28 days')
-        ORDER BY fecha DESC
-    """).fetchall()
+    hoy = date.today().strftime('%Y-%m-%d')
+    dia_semana = date.today().strftime('%A')
 
-    # Resumen 90 días
-    resumen = conn.execute("""
+    # ── Resumen cardio 90 días ───────────────────────────────
+    resumen_cardio = conn.execute("""
         SELECT tipo,
-               COUNT(*) as count,
+               COUNT(*) as sesiones,
                ROUND(SUM(distancia_km),1) as km,
-               ROUND(SUM(tiempo_segundos)/3600.0,1) as horas
+               ROUND(SUM(tiempo_segundos)/3600.0,1) as horas,
+               ROUND(AVG(fc_media),0) as fc_avg
         FROM actividades
-        WHERE fecha >= date('now', '-90 days')
+        WHERE fecha >= date('now','-90 days')
+        AND tipo != 'WeightTraining'
         GROUP BY tipo
     """).fetchall()
 
-    # Fuerza reciente
-    tabla_fuerza = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='workouts_fuerza'").fetchone()
-    fuerza_reciente = []
+    # ── Actividades cardio últimas 8 semanas (una por semana resumida) ──
+    actividades_cardio = conn.execute("""
+        SELECT tipo, fecha, distancia_km, tiempo_segundos,
+               fc_media, fc_maxima, velocidad_media, nombre
+        FROM actividades
+        WHERE fecha >= date('now','-56 days')
+        AND tipo != 'WeightTraining'
+        ORDER BY fecha DESC
+    """).fetchall()
+
+    # ── Workouts fuerza últimos 15 días con detalle ──────────
+    tabla_fuerza = conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='workouts_fuerza'"
+    ).fetchone()
+
+    workouts_fuerza = []
     if tabla_fuerza:
-        fuerza_reciente = conn.execute("""
-            SELECT fecha, nombre, total_sets, volumen_kg, musculos_json
+        workouts_fuerza = conn.execute("""
+            SELECT fecha, nombre, total_sets, total_reps, volumen_kg,
+                   musculos_json, ejercicios_json
             FROM workouts_fuerza
-            WHERE fecha >= date('now', '-28 days')
+            WHERE fecha >= date('now','-15 days')
             ORDER BY fecha DESC
         """).fetchall()
 
-    # Eventos próximos
-    tabla_eventos = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='eventos'").fetchone()
+    # ── Todos los workouts para progresión de cargas ─────────
+    historial_fuerza = []
+    if tabla_fuerza:
+        historial_fuerza = conn.execute("""
+            SELECT fecha, nombre, ejercicios_json
+            FROM workouts_fuerza
+            ORDER BY fecha DESC
+            LIMIT 20
+        """).fetchall()
+
+    # ── Zonas HR de actividades recientes ────────────────────
+    streams_recientes = conn.execute("""
+        SELECT a.fecha, a.tipo, a.nombre, s.heartrate_data
+        FROM actividades a
+        JOIN activity_streams s ON a.strava_id = s.strava_id
+        WHERE a.fecha >= date('now','-30 days')
+        AND s.heartrate_data IS NOT NULL
+        AND s.heartrate_data != '[]'
+        ORDER BY a.fecha DESC
+        LIMIT 5
+    """).fetchall()
+
+    # ── Eventos próximos ─────────────────────────────────────
+    tabla_eventos = conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='eventos'"
+    ).fetchone()
     eventos = []
     if tabla_eventos:
         eventos = conn.execute("""
-            SELECT nombre, tipo, fecha,
+            SELECT nombre, categoria, fecha,
                    CAST(julianday(fecha) - julianday('now') AS INTEGER) as dias
-            FROM eventos WHERE fecha >= date('now') ORDER BY fecha ASC LIMIT 5
+            FROM eventos
+            WHERE fecha >= date('now')
+            ORDER BY fecha ASC
+            LIMIT 8
         """).fetchall()
+
+    # ── Calcular peso máximo por ejercicio clave ─────────────
+    pesos_max = {}
+    ejercicios_clave = {
+        'bench press': 'Bench Press',
+        'press de banca': 'Bench Press',
+        'squat': 'Squat',
+        'sentadilla': 'Squat',
+        'deadlift': 'Deadlift',
+        'peso muerto': 'Deadlift',
+        'overhead press': 'OHP',
+        'shoulder press': 'OHP',
+        'pull up': 'Pull Up',
+        'dominadas': 'Pull Up',
+        'row': 'Row',
+    }
+    for w in historial_fuerza:
+        ejercicios = json.loads(w['ejercicios_json'])
+        for e in ejercicios:
+            nombre_low = e['nombre'].lower()
+            for key, norm in ejercicios_clave.items():
+                if key in nombre_low:
+                    peso = max((s['peso_kg'] for s in e['series']), default=0)
+                    if norm not in pesos_max or peso > pesos_max[norm]['peso']:
+                        pesos_max[norm] = {'peso': peso, 'fecha': w['fecha']}
 
     conn.close()
 
-    ctx = """Eres el entrenador personal de Felipe. Tienes acceso completo a su historial de entrenamiento.
+    FC_MAX = 198  # 220 - 22 años
+    ZONAS = [
+        ('Z1 Recovery',  FC_MAX*0.50, FC_MAX*0.60),
+        ('Z2 Base',      FC_MAX*0.60, FC_MAX*0.70),
+        ('Z3 Tempo',     FC_MAX*0.70, FC_MAX*0.80),
+        ('Z4 Threshold', FC_MAX*0.80, FC_MAX*0.90),
+        ('Z5 Max',       FC_MAX*0.90, FC_MAX),
+    ]
+
+    def calcular_zonas(hr_data_json):
+        try:
+            hrs = json.loads(hr_data_json)
+            hrs = [h for h in hrs if h and h > 50]
+            if not hrs:
+                return None
+            total = len(hrs)
+            dist = {}
+            for h in hrs:
+                for nombre, mn, mx in ZONAS:
+                    if mn <= h < mx:
+                        dist[nombre] = dist.get(nombre, 0) + 1
+                        break
+            return {k: round(v/total*100) for k, v in dist.items()}
+        except:
+            return None
+
+    def pace_str(dist_km, tiempo_seg):
+        if not dist_km or not tiempo_seg or dist_km == 0:
+            return None
+        sec_km = tiempo_seg / dist_km
+        return f"{int(sec_km//60)}:{int(sec_km%60):02d}/km"
+
+    # ── CONSTRUIR EL SYSTEM PROMPT ───────────────────────────
+    ctx = f"""Eres Coach Aria, entrenadora personal de Felipe. Tienes acceso completo a su historial de entrenamiento actualizado en tiempo real.
+
+INSTRUCCIONES DE COMPORTAMIENTO:
+- Responde SIEMPRE en español, tono directo, motivador y honesto
+- Sé específico: cuando recomiendes ejercicios incluye series, reps y peso sugerido basado en su historial
+- SIEMPRE considera la cintilla iliotibial (IT band) en cualquier recomendación de carrera o ejercicio de pierna — es la lesión activa más importante
+- Para hipertrofia: prioriza progresión de cargas, volumen por grupo muscular, descanso adecuado
+- Para triatlón: construcción gradual de base aeróbica sin interferir con recuperación muscular
+- Nutrición: consejos prácticos de timing pre/post entreno, no dietas estrictas
+- Si hay eventos o parciales próximos, ajusta la carga de entrenamiento automáticamente
+- Cuando no tienes datos suficientes, dilo claramente y pide más información
+- Hoy es {dia_semana} {hoy}
 
 PERFIL DEL ATLETA:
-- Nombre: Felipe
-- Peso: ~80kg, Altura: 1.83m
-- Objetivo principal: Hipertrofia (60%) + Triatlón (40%)
-- Disciplinas activas: Run, WeightTraining. Próximamente: Swim, Ride
-- Lesión activa: Cintilla iliotibial (IT Band) — IMPORTANTE considerar siempre
-- Nivel: Intermedio, lleva tiempo entrenando gym y corriendo
-- No tiene base en ciclismo ni natación aún
+- Nombre: Felipe | Edad: 22 años | Peso: ~80kg | Altura: 1.83m
+- Objetivo principal: Hipertrofia 60% + Triatlón 40%
+- Split objetivo: 60% gym (hipertrofia) + 40% cardio (run/swim/bike)
+- Disciplinas activas: Run, WeightTraining
+- Por iniciar: Swim y Ride — SIN BASE en ninguna de las dos
+- Lesión ACTIVA: Cintilla iliotibial (IT band syndrome)
+  → Considerar SIEMPRE en ejercicios de pierna y carrera
+  → Evitar: bajadas largas, cambios de ritmo bruscos, volumen alto de carrera
+  → Incluir: trabajo de glúteos, foam roller, estiramientos específicos
+- Nivel: Intermedio — lleva tiempo en gym y running, promedio en ambas
 
-FILOSOFÍA DE ENTRENAMIENTO:
-- Priorizar recuperación de cintilla iliotibial antes de aumentar volumen de carrera
-- Hipertrofia: periodización con progresión de cargas
-- Triatlón: construcción gradual de base aeróbica
-- Nutrición: consejos prácticos de timing, no dieta estricta
+PESOS MÁXIMOS HISTÓRICOS:
+"""
+    if pesos_max:
+        for ejercicio, data in pesos_max.items():
+            ctx += f"  {ejercicio}: {data['peso']}kg (último récord: {data['fecha']})\n"
+    else:
+        ctx += "  Sin datos suficientes aún\n"
 
-RESUMEN ÚLTIMOS 90 DÍAS:\n"""
+    ctx += "\nRESUMEN CARDIO ÚLTIMOS 90 DÍAS:\n"
+    if resumen_cardio:
+        for r in resumen_cardio:
+            ctx += f"  {r['tipo']}: {r['sesiones']} sesiones | {r['km']}km | {r['horas']}h | FC avg {r['fc_avg'] or 'N/A'} bpm\n"
+    else:
+        ctx += "  Sin actividades cardio en este periodo\n"
 
-    for r in resumen:
-        ctx += f"- {r['tipo']}: {r['count']} sesiones, {r['km']}km, {r['horas']}h\n"
+    ctx += "\nACTIVIDADES CARDIO RECIENTES (últimas 8 semanas):\n"
+    for a in actividades_cardio:
+        pace = pace_str(a['distancia_km'], a['tiempo_segundos'])
+        tiempo_min = round((a['tiempo_segundos'] or 0) / 60)
+        ctx += f"  {a['fecha']} | {a['tipo']} | {a['distancia_km']}km | {tiempo_min}min"
+        if pace:
+            ctx += f" | pace {pace}"
+        if a['fc_media']:
+            ctx += f" | FC {a['fc_media']}avg/{a['fc_maxima']}max"
+        ctx += "\n"
 
-    ctx += "\nACTIVIDADES ÚLTIMAS 4 SEMANAS:\n"
-    for a in actividades:
-        tiempo_min = round((a["tiempo_segundos"] or 0) / 60)
-        ctx += f"- {a['fecha']} | {a['tipo']} | {a['nombre']} | {a['distancia_km']}km | {tiempo_min}min | FC: {a['fc_media'] or 'N/A'}\n"
+    if streams_recientes:
+        ctx += "\nZONAS HR ACTIVIDADES RECIENTES:\n"
+        for s in streams_recientes:
+            zonas = calcular_zonas(s['heartrate_data'])
+            if zonas:
+                zonas_str = " | ".join([f"{k}: {v}%" for k, v in sorted(zonas.items())])
+                ctx += f"  {s['fecha']} {s['nombre']}: {zonas_str}\n"
 
-    if fuerza_reciente:
-        ctx += "\nWORKOUTS DE FUERZA RECIENTES:\n"
-        for w in fuerza_reciente:
-            musculos = json.loads(w["musculos_json"])
-            ctx += f"- {w['fecha']} | {w['nombre']} | {w['total_sets']} sets | {w['volumen_kg']}kg vol | Músculos: {', '.join(musculos.keys())}\n"
+    if workouts_fuerza:
+        ctx += "\nWORKOUTS DE FUERZA ÚLTIMOS 15 DÍAS (con detalle completo):\n"
+        for w in workouts_fuerza:
+            musculos = json.loads(w['musculos_json'])
+            ejercicios = json.loads(w['ejercicios_json'])
+            ctx += f"\n  {w['fecha']} — {w['nombre']}\n"
+            ctx += f"  Resumen: {w['total_sets']} sets | {w['total_reps']} reps | {w['volumen_kg']}kg volumen\n"
+            ctx += f"  Grupos: {', '.join(musculos.keys())}\n"
+            ctx += "  Ejercicios:\n"
+            for e in ejercicios:
+                series_str = " | ".join([f"{s['peso_kg']}kg×{s['reps']}" for s in e['series']])
+                peso_max = max((s['peso_kg'] for s in e['series']), default=0)
+                ctx += f"    {e['nombre']}: {series_str} → max {peso_max}kg\n"
+    else:
+        ctx += "\nWORKOUTS DE FUERZA: Sin sesiones en los últimos 15 días\n"
 
     if eventos:
-        ctx += "\nEVENTOS PRÓXIMOS:\n"
+        ctx += "\nEVENTOS Y CONTEXTO PRÓXIMO:\n"
         for e in eventos:
-            ctx += f"- {e['nombre']} ({e['tipo']}) en {e['dias']} días ({e['fecha']})\n"
+            ctx += f"  {e['nombre']} ({e['categoria']}) → en {e['dias']} días ({e['fecha']})\n"
+            if e['categoria'] in ['parcial', 'examen'] and e['dias'] <= 14:
+                ctx += f"    → ALERTA: semana de {e['categoria']} próxima, reducir carga de entrenamiento\n"
+            if e['categoria'] == 'competencia' and e['dias'] <= 21:
+                ctx += f"    → ALERTA: competencia en {e['dias']} días, entrar en fase de tapering\n"
+    else:
+        ctx += "\nEVENTOS: Sin eventos próximos registrados\n"
 
-    ctx += "\nRESPONDE SIEMPRE EN ESPAÑOL. Sé directo, específico y considera la lesión de cintilla iliotibial en cualquier recomendación de carrera o pierna."
+    ctx += f"\nFecha actual: {hoy} ({dia_semana})"
 
     return ctx
 
@@ -495,7 +640,7 @@ def api_actividad(strava_id):
 
 @app.route("/api/chat", methods=["POST"])
 def api_chat():
-    import requests as req
+    import anthropic as ant
     data = request.json
     historial = data.get("historial", [])
     mensaje = data.get("mensaje", "")
@@ -507,25 +652,27 @@ def api_chat():
     sistema = construir_contexto()
     messages = historial + [{"role": "user", "content": mensaje}]
 
-    response = req.post(
-        "https://api.anthropic.com/v1/messages",
-        headers={
-            "x-api-key": api_key,
-            "anthropic-version": "2023-06-01",
-            "content-type": "application/json"
-        },
-        json={
-            "model": "claude-sonnet-4-20250514",
-            "max_tokens": 1000,
-            "system": sistema,
-            "messages": messages
-        }
+    client = ant.Anthropic(api_key=api_key)
+
+    response = client.messages.create(
+        model="claude-sonnet-4-6",
+        max_tokens=2000,
+        system=[
+            {
+                "type": "text",
+                "text": sistema,
+                "cache_control": {"type": "ephemeral"}
+            }
+        ],
+        messages=messages
     )
 
-    if response.status_code != 200:
-        return jsonify({"error": response.text}), 500
+    respuesta = response.content[0].text
+    
+    # Log de uso para monitorear caching
+    uso = response.usage
+    print(f"Tokens — input: {uso.input_tokens} | output: {uso.output_tokens} | cache_created: {getattr(uso, 'cache_creation_input_tokens', 0)} | cache_read: {getattr(uso, 'cache_read_input_tokens', 0)}")
 
-    respuesta = response.json()["content"][0]["text"]
     return jsonify({"respuesta": respuesta})
 
 
