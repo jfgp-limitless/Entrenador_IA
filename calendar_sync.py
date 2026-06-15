@@ -10,7 +10,6 @@ SCOPES = ['https://www.googleapis.com/auth/calendar.readonly']
 CREDENTIALS_FILE = 'google_credentials.json'
 TOKEN_FILE = 'google_token.pickle'
 
-# Solo estos dos calendarios
 CALENDARIOS_PERMITIDOS = ['competencias', 'examenes']
 
 CATEGORIAS = {
@@ -78,7 +77,6 @@ def sincronizar_eventos():
     calendars_result = service.calendarList().list().execute()
     todos = calendars_result.get('items', [])
 
-    # Filtrar solo los calendarios que nos interesan
     calendarios = [
         c for c in todos
         if any(p in c['summary'].lower() for p in CALENDARIOS_PERMITIDOS)
@@ -95,6 +93,7 @@ def sincronizar_eventos():
     c = conn.cursor()
     nuevos = 0
     actualizados = 0
+    todos_los_ids = []  # acumular IDs de TODOS los calendarios
 
     for calendario in calendarios:
         cal_id = calendario['id']
@@ -118,6 +117,7 @@ def sincronizar_eventos():
 
         for e in eventos:
             google_id = e['id']
+            todos_los_ids.append(google_id)  # acumular
             nombre = e.get('summary', 'Sin titulo')
             descripcion = e.get('description', '')
             categoria = clasificar_evento(cal_nombre, nombre, descripcion)
@@ -161,6 +161,21 @@ def sincronizar_eventos():
                 """, (google_id, nombre, categoria, fecha, fecha_fin,
                       hora, descripcion, todo_el_dia, cal_nombre))
                 nuevos += 1
+                print(f"  Guardado: {nombre} ({categoria}) — {fecha}")
+
+    # Borrar eventos que ya no existen — usando TODOS los IDs acumulados
+    if todos_los_ids:
+        nombres_calendarios = [cal['summary'] for cal in calendarios]
+        placeholders_ids = ','.join(['?' for _ in todos_los_ids])
+        placeholders_cals = ','.join(['?' for _ in nombres_calendarios])
+        c.execute(f"""
+            DELETE FROM eventos
+            WHERE google_id NOT IN ({placeholders_ids})
+            AND calendario IN ({placeholders_cals})
+        """, todos_los_ids + nombres_calendarios)
+        borrados = conn.total_changes
+        if borrados:
+            print(f"Eventos eliminados que ya no existen en Google: {borrados}")
 
     conn.commit()
     conn.close()
