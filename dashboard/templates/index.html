@@ -56,6 +56,20 @@
     .swim{background:#1a2228;color:#7ed4ef}
     .weighttraining{background:#1e222a;color:#7eaaef}
     .hidden{display:none !important}
+
+    .day-card{background:#16161e;border:1px solid #1e1e26;border-radius:12px;padding:14px;min-height:140px}
+    .day-card.today{border-color:#378ADD;background:#0d1a2e}
+    .day-card .day-name{font-size:11px;font-weight:500;color:#6b6b78;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
+    .day-card.today .day-name{color:#7eaaef}
+    .day-card .day-date{font-size:10px;color:#3a3a4e;margin-bottom:10px}
+    .day-tag{display:inline-block;padding:3px 8px;border-radius:6px;font-size:11px;margin-bottom:4px;line-height:1.4}
+    .day-tag.gym{background:#1e222a;color:#7eaaef}
+    .day-tag.run{background:#1e2a1e;color:#7ecb8f}
+    .day-tag.swim{background:#1a2228;color:#7ed4ef}
+    .day-tag.recovery{background:#2a1e1e;color:#e07b4f}
+    .day-tag.vo2{background:#2a1e28;color:#cf8fef}
+    .day-tag.bike{background:#2a2a1e;color:#f0c040}
+
     @media(max-width:600px){
       .grid-charts{grid-template-columns:1fr;padding:0 16px}
       .grid-stats{padding:0 16px}
@@ -90,10 +104,15 @@
   </div>
 </div>
 
+
+
 <p class="section-title">Resumen</p>
 <div class="grid-stats" id="stats-container">
   <div class="stat"><div class="lbl">Cargando...</div></div>
 </div>
+
+<p class="section-title plan-title">Weekly Training Plan</p>
+<div id="weekly-plan" style="padding:0 32px 8px;display:grid;grid-template-columns:repeat(7,1fr);gap:10px"></div>
 
 <!-- SECCION: cardio (todo / run / ride / swim) -->
 <div id="seccion-cardio">
@@ -364,9 +383,14 @@ function setFiltro(tipo, btn){
   document.getElementById('seccion-cardio').classList.toggle('hidden', esFuerza)
   document.getElementById('seccion-fuerza').classList.toggle('hidden', !esFuerza && tipo !== 'all')
 
-  // Ocultar progresion en "all", mostrar solo en fuerza
   const progDiv = document.getElementById('fuerza-progresion')
   if(progDiv) progDiv.classList.toggle('hidden', tipo !== 'WeightTraining')
+
+  // Plan semanal solo en "all"
+  const planDiv = document.getElementById('weekly-plan')
+  if(planDiv) planDiv.classList.toggle('hidden', tipo !== 'all')
+  const planTitle = document.querySelector('.plan-title')
+  if(planTitle) planTitle.classList.toggle('hidden', tipo !== 'all')
 
   if(tipo === 'all'){
     document.getElementById('seccion-cardio').classList.remove('hidden')
@@ -381,6 +405,85 @@ function setPeriodo(dias, btn){
   document.querySelectorAll('.period-btn').forEach(b=>b.classList.remove('active'))
   btn.classList.add('active')
   recargarTodo()
+}
+
+function renderWeeklyPlan(){
+  const PLAN = [
+    {
+      day: 'Monday',
+      items: [
+        { text:'Chest · Triceps · Shoulders', type:'gym' },
+        { text:'Easy Run 25-35 min Z2', type:'run' }
+      ]
+    },
+    {
+      day: 'Tuesday',
+      items: [
+        { text:'Legs — Quads · Core', type:'gym' },
+        { text:'IT Band rehab work', type:'recovery' }
+      ]
+    },
+    {
+      day: 'Wednesday',
+      items: [
+        { text:'Back · Biceps · Forearms', type:'gym' },
+        { text:'Swimming', type:'swim' }
+      ]
+    },
+    {
+      day: 'Thursday',
+      items: [
+        { text:'Legs — Hamstrings · Glutes · Core', type:'gym' },
+        { text:'IT Band rehab work', type:'recovery' }
+      ]
+    },
+    {
+      day: 'Friday',
+      items: [
+        { text:'Upper Body', type:'gym' },
+        { text:'Swimming', type:'swim' }
+      ]
+    },
+    {
+      day: 'Saturday',
+      items: [
+        { text:'Mobility', type:'recovery' },
+        { text:'Norwegian Method VO2max', type:'vo2' }
+      ]
+    },
+    {
+      day: 'Sunday',
+      items: [
+        { text:'Long Run / Bike / Brick', type:'bike' }
+      ]
+    }
+  ]
+
+  const hoy = new Date()
+  const diaSemana = hoy.getDay() // 0=domingo, 1=lunes...
+  // Convertir a índice del array (lunes=0)
+  const idxHoy = diaSemana === 0 ? 6 : diaSemana - 1
+
+  const opciones = {weekday:'short', month:'short', day:'numeric'}
+
+  const container = document.getElementById('weekly-plan')
+  if(!container) return
+
+  container.innerHTML = PLAN.map((p, i) => {
+    const fecha = new Date(hoy)
+    fecha.setDate(hoy.getDate() - idxHoy + i)
+    const fechaStr = fecha.toLocaleDateString('en-US', opciones)
+    const esHoy = i === idxHoy
+
+    return `
+      <div class="day-card ${esHoy ? 'today' : ''}">
+        <div class="day-name">${p.day}${esHoy ? ' · Today' : ''}</div>
+        <div class="day-date">${fechaStr}</div>
+        ${p.items.map(item=>`
+          <div class="day-tag ${item.type}">${item.text}</div>
+        `).join('')}
+      </div>`
+  }).join('')
 }
 
 function recargarTodo(){
@@ -652,6 +755,7 @@ if(progDiv) progDiv.classList.add('hidden')
 // Fuerza visible en "all" desde el inicio
 document.getElementById('seccion-fuerza').classList.remove('hidden')
 
+renderWeeklyPlan()
 recargarTodo()
 cargarEventos()
 
