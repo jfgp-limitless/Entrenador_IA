@@ -513,13 +513,12 @@ def get_progresion_ejercicios(dias=365):
     ejercicios_data = {}
     alias = {
         "bench press": "Bench Press", "press de banca": "Bench Press", "chest press": "Bench Press",
-        "squat (smith Machine) ": "Squat",
+        "squat (smith machine)": "Squat", "smith machine squat": "Squat", "sentadilla": "Squat",
         "deadlift": "Deadlift", "peso muerto": "Deadlift",
         "overhead press": "Overhead Press", "shoulder press": "Overhead Press",
         "row": "Row", "remo": "Row",
         "pull up": "Pull Up", "dominadas": "Pull Up"
     }
-
     for r in rows:
         ejercicios = json.loads(r["ejercicios_json"])
         for e in ejercicios:
