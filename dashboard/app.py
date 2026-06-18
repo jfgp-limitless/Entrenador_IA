@@ -513,7 +513,7 @@ def get_progresion_ejercicios(dias=365):
     ejercicios_data = {}
     alias = {
         "bench press": "Bench Press", "press de banca": "Bench Press", "chest press": "Bench Press",
-        "squat": "Squat", "sentadilla": "Squat",
+        "squat (smith Machine) ": "Squat",
         "deadlift": "Deadlift", "peso muerto": "Deadlift",
         "overhead press": "Overhead Press", "shoulder press": "Overhead Press",
         "row": "Row", "remo": "Row",
@@ -525,7 +525,7 @@ def get_progresion_ejercicios(dias=365):
         for e in ejercicios:
             nombre = e["nombre"].lower()
             nombre_norm = None
-            for key, norm in alias.items():
+            for key, norm in sorted(alias.items(), key=lambda x: -len(x[0])):
                 if key in nombre:
                     nombre_norm = norm
                     break

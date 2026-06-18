@@ -94,6 +94,9 @@ MUSCLE_MAP = {
     "leg raise": "core",
     "cable crunch": "core",
     "hanging": "core",
+    "heel taps": "core",
+    "v-up": "core",
+    "plank": "core",
 }
 
 # Grupos para los radares
@@ -129,10 +132,6 @@ def lbs_a_kg(valor):
     return round(valor * 0.453592, 1)
 
 def parsear_descripcion_hevy(descripcion):
-    """
-    Parsea la descripción de un workout de Hevy exportado a Strava.
-    Retorna lista de ejercicios con sus series.
-    """
     if not descripcion:
         return []
 
@@ -147,11 +146,19 @@ def parsear_descripcion_hevy(descripcion):
         if not linea:
             continue
 
-        # Detectar línea de serie: "Set N: X kg x Y" o "Set N: X lbs x Y"
+        # Serie con peso: "Set N: X kg x Y" o "X lbs x Y"
         match_set = re.match(
             r"Set\s+\d+:\s+([\d.]+)\s*(kg|lbs)\s*x\s*(\d+)", linea, re.IGNORECASE
         )
-        # Warm up set
+        # Serie solo reps (bodyweight): "Set N: Y reps"
+        match_reps = re.match(
+            r"Set\s+\d+:\s+(\d+)\s*reps?$", linea, re.IGNORECASE
+        )
+        # Serie en tiempo (plank, etc): "Set N: Xs" o "Set N: Xmin Ys"
+        match_tiempo = re.match(
+            r"Set\s+\d+:\s+(?:(\d+)min\s*)?(\d+)s$", linea, re.IGNORECASE
+        )
+        # Warm up set (tiempo, se ignora)
         match_warmup = re.match(r"Set\s+\d+:\s+[\d]+min", linea, re.IGNORECASE)
 
         if match_set:
@@ -161,11 +168,21 @@ def parsear_descripcion_hevy(descripcion):
             peso_kg = lbs_a_kg(peso_raw) if unidad == "lbs" else peso_raw
             series_actuales.append({"peso_kg": peso_kg, "reps": reps})
 
+        elif match_reps:
+            reps = int(match_reps.group(1))
+            series_actuales.append({"peso_kg": 0, "reps": reps})
+
+        elif match_tiempo:
+            minutos = int(match_tiempo.group(1)) if match_tiempo.group(1) else 0
+            segundos = int(match_tiempo.group(2))
+            total_seg = minutos * 60 + segundos
+            # Para ejercicios isométricos guardamos segundos como "reps"
+            series_actuales.append({"peso_kg": 0, "reps": total_seg, "es_tiempo": True})
+
         elif match_warmup:
-            continue  # ignorar warm up time
+            continue
 
         elif not linea.startswith("Set") and not linea.startswith("Warm"):
-            # Es el nombre de un ejercicio nuevo
             if ejercicio_actual and series_actuales:
                 ejercicios.append({
                     "nombre": ejercicio_actual,
@@ -175,7 +192,6 @@ def parsear_descripcion_hevy(descripcion):
             ejercicio_actual = linea
             series_actuales = []
 
-    # Guardar último ejercicio
     if ejercicio_actual and series_actuales:
         ejercicios.append({
             "nombre": ejercicio_actual,
