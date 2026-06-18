@@ -518,7 +518,9 @@ def get_progresion_ejercicios(dias=365):
         "deadlift": "Deadlift", "peso muerto": "Deadlift",
         "overhead press": "Overhead Press", "shoulder press": "Overhead Press",
         "row": "Row", "remo": "Row",
-        "pull up": "Pull Up", "dominadas": "Pull Up"
+        "pull up": "Pull Up", "dominadas": "Pull Up",
+        "lat pulldown": "Lat Pulldown",
+        "bicep curl": "Bicep Curl", "cable curl": "Bicep Curl"
     }
     for r in rows:
         ejercicios = json.loads(r["ejercicios_json"])
