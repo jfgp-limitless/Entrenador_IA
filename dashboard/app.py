@@ -513,6 +513,7 @@ def get_progresion_ejercicios(dias=365):
     ejercicios_data = {}
     alias = {
         "bench press": "Bench Press", "press de banca": "Bench Press", "chest press": "Bench Press",
+        "chest fly": "Chest Fly", "pec deck": "Chest Fly",
         "squat (smith machine)": "Squat", "smith machine squat": "Squat", "sentadilla": "Squat",
         "deadlift": "Deadlift", "peso muerto": "Deadlift",
         "overhead press": "Overhead Press", "shoulder press": "Overhead Press",

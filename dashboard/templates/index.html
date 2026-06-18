@@ -232,7 +232,7 @@ function cargarProgresion(){
         { label:'Bicep Curl',     keys:['bicep curl'] },
     ],
     legs: [
-        { label:'Squat (Smith)',  keys:['squat (smith'] },
+        { label:'Squat (Smith)',  keys:['squat'] },
         { label:'Hip Thrust',     keys:['hip thrust'] },
     ]
     }
@@ -240,8 +240,7 @@ function cargarProgresion(){
     function buscarMax(data, keys){
       let maxPeso = null
       for(const nombre of Object.keys(data)){
-        const nombreLow = nombre.toLowerCase()
-        if(keys.some(k => nombreLow.includes(k))){
+        if(keys.includes(nombre.toLowerCase())){
           const registros = data[nombre]
           const m = Math.max(...registros.map(r=>r.peso_max))
           if(maxPeso === null || m > maxPeso) maxPeso = m
@@ -283,12 +282,9 @@ function cargarProgresion(){
     const COLORES = ['#e07b4f','#7ecb8f','#7eaaef']
 
     GRAFICAS.forEach((ej, i)=>{
-      // Buscar registros que coincidan con las keys
       let registros = []
       for(const nombre of Object.keys(data)){
-        const nombreLow = nombre.toLowerCase()
-        if(ej.keys.some(k => nombreLow.includes(k))){
-          // Mergear registros por fecha tomando el maximo
+        if(ej.keys.includes(nombre.toLowerCase())){
           for(const r of data[nombre]){
             const existing = registros.find(x=>x.fecha===r.fecha)
             if(existing){
@@ -300,6 +296,7 @@ function cargarProgresion(){
         }
       }
       registros.sort((a,b)=>a.fecha.localeCompare(b.fecha))
+      
 
       const titleEl = document.getElementById(`title-prog-${i}`)
       if(titleEl) titleEl.textContent = `${ej.label} — max weight (kg)`
