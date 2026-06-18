@@ -95,7 +95,7 @@ MUSCLE_MAP = {
     "cable crunch": "core",
     "hanging": "core",
     "heel taps": "core",
-    "v-up": "core",
+    "v up": "core",
     "plank": "core",
 }
 
