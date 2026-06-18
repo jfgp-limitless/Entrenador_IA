@@ -136,14 +136,7 @@
 <!-- SECCION: fuerza -->
 <div id="seccion-fuerza" class="hidden">
   <p class="section-title">Fuerza — Weight Training</p>
-  <div style="padding:0 32px 16px">
-    <div class="fuerza-metrics" id="fuerza-metrics">
-      <div class="fm"><div class="fv" id="fw-workouts">-</div><div class="fl">Workouts</div></div>
-      <div class="fm"><div class="fv" id="fw-duration">-</div><div class="fl">Duracion est.</div></div>
-      <div class="fm"><div class="fv" id="fw-volumen">-</div><div class="fl">Volumen (kg)</div></div>
-      <div class="fm"><div class="fv" id="fw-sets">-</div><div class="fl">Sets totales</div></div>
-    </div>
-  </div>
+
  
   <div class="grid-charts">
     <div class="chart-card">
@@ -660,12 +653,7 @@ function cargarGraficaFC(){
 }
 
 function cargarFuerza(){
-  fetch(`/api/metricas_fuerza?dias=${periodoActivo}`).then(r=>r.json()).then(d=>{
-    document.getElementById('fw-workouts').textContent = d.workouts||0
-    document.getElementById('fw-duration').textContent = d.workouts ? Math.round(d.workouts*55)+'min' : '-'
-    document.getElementById('fw-volumen').textContent = d.volumen ? (d.volumen/1000).toFixed(1)+'t' : 0
-    document.getElementById('fw-sets').textContent = d.sets||0
-  })
+
 
   const radarOpts = (color) => ({
     responsive:true, maintainAspectRatio:false,
