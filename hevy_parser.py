@@ -119,6 +119,37 @@ LOWER_LABELS = {
     "core": "Core"
 }
 
+# Líneas que Hevy agrega automáticamente al final de la descripción
+# y que NO representan un ejercicio (firma de la app, etc.)
+LINEAS_IGNORAR = (
+    "logged with hevyapp.com",
+    "completed with hevyapp.com",
+    "hevyapp.com",
+)
+
+def es_linea_ignorable(linea):
+    linea_low = linea.lower().strip(" .")
+    return any(ignorar in linea_low for ignorar in LINEAS_IGNORAR)
+
+# Ejercicios isométricos: Hevy los registra como "X reps" en el texto,
+# pero en realidad esos números son segundos sostenidos, no repeticiones.
+EJERCICIOS_ISOMETRICOS = (
+    "plank",
+    "wall sit",
+    "hollow hold",
+    "side plank",
+    "dead hang",
+    "l-sit",
+    "l sit",
+    "superman hold",
+)
+
+def es_ejercicio_isometrico(nombre_ejercicio):
+    if not nombre_ejercicio:
+        return False
+    nombre_low = nombre_ejercicio.lower()
+    return any(e in nombre_low for e in EJERCICIOS_ISOMETRICOS)
+
 def detectar_musculo(nombre_ejercicio):
     nombre = nombre_ejercicio.lower()
     # Buscar match más específico primero (más largo)
@@ -146,6 +177,11 @@ def parsear_descripcion_hevy(descripcion):
         if not linea:
             continue
 
+        # Firma de Hevy ("Logged with hevyapp.com") u otras líneas de relleno:
+        # se ignoran por completo, no son un ejercicio ni una serie.
+        if es_linea_ignorable(linea):
+            continue
+
         # Serie con peso: "Set N: X kg x Y" o "X lbs x Y"
         match_set = re.match(
             r"Set\s+\d+:\s+([\d.]+)\s*(kg|lbs)\s*x\s*(\d+)", linea, re.IGNORECASE
@@ -170,7 +206,12 @@ def parsear_descripcion_hevy(descripcion):
 
         elif match_reps:
             reps = int(match_reps.group(1))
-            series_actuales.append({"peso_kg": 0, "reps": reps})
+            # Si el ejercicio actual es isométrico (plank, wall sit, etc.),
+            # el número que Hevy llama "reps" en realidad son segundos.
+            if es_ejercicio_isometrico(ejercicio_actual):
+                series_actuales.append({"peso_kg": 0, "reps": reps, "es_tiempo": True})
+            else:
+                series_actuales.append({"peso_kg": 0, "reps": reps})
 
         elif match_tiempo:
             minutos = int(match_tiempo.group(1)) if match_tiempo.group(1) else 0
@@ -203,7 +244,11 @@ def parsear_descripcion_hevy(descripcion):
 
 def calcular_metricas_workout(ejercicios):
     total_sets = sum(len(e["series"]) for e in ejercicios)
-    total_reps = sum(s["reps"] for e in ejercicios for s in e["series"])
+    # Las series marcadas como "es_tiempo" (plank, wall sit...) no son repeticiones,
+    # así que no deben sumarse al total de reps.
+    total_reps = sum(
+        s["reps"] for e in ejercicios for s in e["series"] if not s.get("es_tiempo")
+    )
     volumen_total = sum(
         s["peso_kg"] * s["reps"] for e in ejercicios for s in e["series"]
     )
