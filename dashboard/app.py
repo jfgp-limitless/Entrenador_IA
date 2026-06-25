@@ -512,30 +512,33 @@ def get_progresion_ejercicios(dias=365):
     # Agrupar por ejercicio normalizado
     ejercicios_data = {}
     alias = {
-        "bench press": "Bench Press", "press de banca": "Bench Press", "chest press": "Bench Press",
-        "chest fly": "Chest Fly", "pec deck": "Chest Fly",
-        "squat (smith machine)": "Squat", "smith machine squat": "Squat", "sentadilla": "Squat",
-        "deadlift": "Deadlift", "peso muerto": "Deadlift",
-        "overhead press": "Overhead Press", "shoulder press": "Overhead Press",
-        "row": "Row", "remo": "Row",
-        "pull up": "Pull Up", "dominadas": "Pull Up",
-        "lat pulldown": "Lat Pulldown",
-        "bicep curl": "Bicep Curl", "cable curl": "Bicep Curl"
-    }
+            "bench press (barbell)": "Bench Press",
+            "chest fly (machine)": "Chest Fly",
+            "squat (smith machine)": "Squat",
+            "lat pulldown (cable)": "Lat Pulldown",
+            "bicep curl (cable)": "Bicep Curl",
+            "hip thrust": "Hip Thrust",
+            "deadlift": "Deadlift", "peso muerto": "Deadlift",
+            "overhead press": "Overhead Press", "shoulder press": "Overhead Press",
+            "row": "Row", "remo": "Row",
+            "pull up": "Pull Up", "dominadas": "Pull Up",
+        }
     for r in rows:
         ejercicios = json.loads(r["ejercicios_json"])
         for e in ejercicios:
-            nombre = e["nombre"].lower()
-            nombre_norm = None
-            for key, norm in sorted(alias.items(), key=lambda x: -len(x[0])):
-                if key in nombre:
-                    nombre_norm = norm
-                    break
-            if not nombre_norm:
-                nombre_norm = e["nombre"]
+            nombre = e["nombre"].lower().strip()
+            nombre_norm = alias.get(nombre, e["nombre"])
 
             if not e["series"]:
                 continue
+
+            # Set con el peso mas alto de esta sesion, con sus reps
+            mejor_set = max(e["series"], key=lambda s: s["peso_kg"])
+            peso_max = mejor_set["peso_kg"]
+            reps_del_max = mejor_set["reps"]
+            if peso_max == 0:
+                continue
+            
 
             # Set con el peso mas alto de esta sesion, con sus reps
             mejor_set = max(e["series"], key=lambda s: s["peso_kg"])
