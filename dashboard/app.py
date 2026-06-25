@@ -534,31 +534,52 @@ def get_progresion_ejercicios(dias=365):
             if not nombre_norm:
                 nombre_norm = e["nombre"]
 
-            peso_max = max((s["peso_kg"] for s in e["series"]), default=0)
+            if not e["series"]:
+                continue
+
+            # Set con el peso mas alto de esta sesion, con sus reps
+            mejor_set = max(e["series"], key=lambda s: s["peso_kg"])
+            peso_max = mejor_set["peso_kg"]
+            reps_del_max = mejor_set["reps"]
             if peso_max == 0:
                 continue
 
             if nombre_norm not in ejercicios_data:
                 ejercicios_data[nombre_norm] = []
 
-            # Evitar duplicar misma fecha
             fechas_existentes = [x["fecha"] for x in ejercicios_data[nombre_norm]]
             if r["fecha"] not in fechas_existentes:
                 ejercicios_data[nombre_norm].append({
                     "fecha": r["fecha"],
-                    "peso_max": peso_max
+                    "peso_max": peso_max,
+                    "reps": reps_del_max
                 })
             else:
-                # Actualizar si hay mayor peso ese dia
+                # Si ese dia hubo mas de un set con el mismo nombre normalizado,
+                # quedarse con el de mayor peso
                 for item in ejercicios_data[nombre_norm]:
                     if item["fecha"] == r["fecha"] and peso_max > item["peso_max"]:
                         item["peso_max"] = peso_max
+                        item["reps"] = reps_del_max
 
-    # Ordenar cada ejercicio por fecha
+
+# Ordenar cada ejercicio por fecha
     for key in ejercicios_data:
         ejercicios_data[key].sort(key=lambda x: x["fecha"])
 
+# Aplicar maximo historico acumulado (record vigente a esa fecha)
+    for key in ejercicios_data:
+        record = 0
+        record_reps = 0
+        for item in ejercicios_data[key]:
+            if item["peso_max"] > record or (item["peso_max"] == record and item["reps"] > record_reps):
+                record = item["peso_max"]
+                record_reps = item["reps"]
+            item["peso_max"] = record
+            item["reps"] = record_reps
+
     return ejercicios_data
+
 
 # ── Rutas Flask ───────────────────────────────────────────────
 @app.route("/")

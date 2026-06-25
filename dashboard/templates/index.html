@@ -281,7 +281,7 @@ function cargarProgresion(){
           for(const r of data[nombre]){
             const existing = registros.find(x=>x.fecha===r.fecha)
             if(existing){
-              if(r.peso_max > existing.peso_max) existing.peso_max = r.peso_max
+              if(r.peso_max > existing.peso_max) { existing.peso_max = r.peso_max; existing.reps = r.reps }
             } else {
               registros.push({...r})
             }
@@ -334,7 +334,7 @@ function cargarProgresion(){
         options:{
           responsive:true, maintainAspectRatio:false,
           plugins:{legend:{display:false},
-            tooltip:{callbacks:{label:ctx=>`${ctx.parsed.y} kg`}}},
+            tooltip:{callbacks:{label:ctx=>`${ctx.parsed.y} kg × ${registros[ctx.dataIndex].reps} reps`}}},
           scales:{
             x:{ticks:{color:'#6b6b78',font:{size:10},maxTicksLimit:6},grid:{color:'#1e1e26'}},
             y:{
